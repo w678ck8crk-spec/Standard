@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
-  /* Layout: gele kassabon-kop die blijft staan, daaronder één smalle kolom met twee lijsten (nog halen / in de kar). */
+  /* Layout: gele kop met twee tabbladen (Lijst / Standaard) die blijft staan; daaronder één smalle kolom. */
   :root {
     --geel: #ffd400;
     --op-geel: #1d1b12;
@@ -13,8 +13,9 @@
     --lijn: #e4e0cf;
     --veld: #faf8f0;
     --groen: #2c7d4f;
+    --groen-zacht: #e3f1e8;
     --rood: #b8382b;
-    --ster: #c99a00;
+    --ster: #a67f00;
     --font-kop: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
     --font-tekst: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   }
@@ -22,14 +23,16 @@
     :root:not([data-theme="light"]) {
       --geel: #f2c900; --op-geel: #1d1b12;
       --bg: #15140f; --kaart: #201f18; --fg: #f1eee2; --zacht: #a7a391;
-      --lijn: #34322a; --veld: #1a1913; --groen: #62c48b; --rood: #ff7d6e; --ster: #f2c900;
+      --lijn: #34322a; --veld: #1a1913; --groen: #62c48b; --groen-zacht: #1f3327;
+      --rood: #ff7d6e; --ster: #f2c900;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --geel: #f2c900; --op-geel: #1d1b12;
     --bg: #15140f; --kaart: #201f18; --fg: #f1eee2; --zacht: #a7a391;
-    --lijn: #34322a; --veld: #1a1913; --groen: #62c48b; --rood: #ff7d6e; --ster: #f2c900;
+    --lijn: #34322a; --veld: #1a1913; --groen: #62c48b; --groen-zacht: #1f3327;
+    --rood: #ff7d6e; --ster: #f2c900;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
@@ -40,33 +43,41 @@
   }
   body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--geel); }
   .gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  .wrap { max-width: 620px; margin: 0 auto; }
+  .wrap { max-width: 620px; margin-left: auto; margin-right: auto; }
   header {
     position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
     background: var(--geel); color: var(--op-geel);
-    padding-block: 18px 14px;
+    padding-block: 16px 0;
     box-shadow: 0 2px 10px rgba(0,0,0,.14);
   }
-  h1 { margin: 0; font-family: var(--font-kop); font-weight: 800; font-size: 1.6rem; letter-spacing: -.01em; text-wrap: balance; }
+  h1 { margin: 0; font-family: var(--font-kop); font-weight: 800; font-size: 1.55rem; letter-spacing: -.01em; text-wrap: balance; }
   .teller { margin-top: 2px; font-size: .92rem; font-variant-numeric: tabular-nums; }
-  .balk { margin-top: 10px; height: 8px; border-radius: 4px; background: rgba(0,0,0,.16); overflow: hidden; }
+  .balk { margin-top: 8px; height: 6px; border-radius: 3px; background: rgba(0,0,0,.16); overflow: hidden; }
   .balk div { height: 100%; width: 0; background: var(--op-geel); transition: width .25s; }
-  main { padding-block: 16px 40px; display: flex; flex-direction: column; gap: 10px; }
+  .tabs { display: flex; gap: 4px; margin-top: 12px; }
+  .tab {
+    flex: 1; font: inherit; font-weight: 600; border: 0; cursor: pointer;
+    padding: 10px 8px; border-radius: 10px 10px 0 0;
+    background: transparent; color: var(--op-geel);
+  }
+  .tab[aria-selected="true"] { background: var(--bg); color: var(--fg); }
+  .tab .n { font-variant-numeric: tabular-nums; font-weight: 500; opacity: .7; }
 
+  main { padding-block: 16px 40px; display: flex; flex-direction: column; gap: 10px; }
   .melding { font-size: .9rem; color: var(--zacht); background: var(--kaart); border: 1px dashed var(--lijn); border-radius: 10px; padding: 10px 12px; }
   .melding.fout { color: var(--rood); }
 
-  form#formulier {
+  form.toevoegen {
     display: flex; flex-direction: column; gap: 10px;
     background: var(--kaart); border: 1px solid var(--lijn); border-radius: 12px; padding: 12px;
   }
-  .invoerrij { display: flex; gap: 8px; }
-  #invoer {
+  .invoerrij { display: flex; gap: 8px; align-items: center; }
+  .invoerrij input[type=text] {
     flex: 1; min-width: 0; font: inherit; padding: 10px 12px;
     border: 1px solid var(--lijn); border-radius: 8px; background: var(--veld); color: var(--fg);
   }
-  .std { font-size: .9rem; color: var(--zacht); display: flex; align-items: center; gap: 8px; cursor: pointer; }
-  .std input { width: 18px; height: 18px; accent-color: var(--ster); }
+  .optie { font-size: .9rem; color: var(--zacht); display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .optie input { width: 18px; height: 18px; accent-color: var(--ster); }
 
   button { font: inherit; cursor: pointer; border: 0; border-radius: 8px; padding: 10px 14px; }
   button:focus-visible, input:focus-visible { outline: 3px solid var(--ster); outline-offset: 2px; }
@@ -77,6 +88,13 @@
   .gevaar { background: var(--rood); color: #fff; font-weight: 600; }
   button:disabled, input:disabled { opacity: .5; cursor: not-allowed; }
 
+  /* hoeveelheid-stepper */
+  .stepper { display: inline-flex; align-items: center; border: 1px solid var(--lijn); border-radius: 8px; background: var(--veld); flex: none; }
+  .stepper button { background: transparent; color: var(--fg); padding: 6px 10px; font-size: 1.05rem; line-height: 1; border-radius: 0; }
+  .stepper button:hover { background: var(--lijn); }
+  .stepper .getal { min-width: 2.2ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .aantal { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--zacht); flex: none; }
+
   h2 {
     margin: 14px 2px 0; font-family: var(--font-tekst); font-weight: 600; font-size: .78rem;
     text-transform: uppercase; letter-spacing: .08em; color: var(--zacht);
@@ -85,16 +103,19 @@
   h2 span { font-variant-numeric: tabular-nums; }
   ul { list-style: none; margin: 0; padding: 0; background: var(--kaart); border: 1px solid var(--lijn); border-radius: 12px; overflow: hidden; }
   ul:empty { display: none; }
-  li { display: flex; align-items: center; gap: 10px; padding: 8px 6px 8px 12px; border-top: 1px solid var(--lijn); min-height: 52px; }
+  li { display: flex; align-items: center; gap: 10px; padding: 8px 6px 8px 12px; border-top: 1px solid var(--lijn); min-height: 54px; }
   li:first-child { border-top: 0; }
   li input[type=checkbox] { width: 24px; height: 24px; flex: none; accent-color: var(--groen); cursor: pointer; }
-  li .naam { flex: 1; min-width: 0; overflow-wrap: anywhere; cursor: pointer; padding-block: 6px; }
+  li .naam { flex: 1; min-width: 0; overflow-wrap: anywhere; padding-block: 6px; }
+  li .naam.klik { cursor: pointer; }
   li.gedaan .naam { text-decoration: line-through; color: var(--zacht); }
-  .icoon { background: transparent; color: var(--zacht); padding: 8px 10px; font-size: 1.1rem; line-height: 1; }
+  li.oplijst { background: var(--groen-zacht); }
+  .icoon { background: transparent; color: var(--zacht); padding: 8px 10px; font-size: 1.05rem; line-height: 1; flex: none; }
   .icoon:hover { background: var(--veld); }
-  .icoon.aan { color: var(--ster); }
   .icoon.zeker { background: var(--rood); color: #fff; font-size: .8rem; font-weight: 600; }
-  .leeg { margin: 0; padding: 4px 2px; color: var(--zacht); font-size: .95rem; }
+  .kies { flex: none; font-weight: 600; padding: 8px 12px; background: var(--geel); color: var(--op-geel); }
+  .kies.aan { background: var(--groen); color: #fff; }
+  .leeg { margin: 0; padding: 10px 12px; color: var(--zacht); font-size: .95rem; background: var(--kaart); border: 1px dashed var(--lijn); border-radius: 12px; }
 
   .acties { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
   .acties .vraag { font-size: .92rem; }
@@ -107,64 +128,87 @@
     <h1>Boodschappen Jumbo</h1>
     <div class="teller" id="teller">Lijst laden…</div>
     <div class="balk"><div id="balk"></div></div>
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab" role="tab" id="tabLijst" aria-selected="true" aria-controls="paneelLijst">Lijst <span class="n" id="nLijst"></span></button>
+      <button type="button" class="tab" role="tab" id="tabStandaard" aria-selected="false" aria-controls="paneelStandaard">Standaard <span class="n" id="nStandaard"></span></button>
+    </div>
   </div>
 </header>
 
 <main class="gutter wrap">
-  <div class="melding" id="melding">De gedeelde lijst wordt geladen. Zodra hij er is, zie je hier alle producten en vink je ze samen af.</div>
+  <div class="melding" id="melding">De gedeelde lijst wordt geladen. Zodra hij er is, zie je hier de boodschappen en je standaardproducten.</div>
 
-  <form id="formulier" autocomplete="off">
-    <div class="invoerrij">
-      <input type="text" id="invoer" placeholder="Product toevoegen…" aria-label="Product toevoegen">
-      <button type="submit" class="hoofd" id="toevoegKnop">Toevoegen</button>
+  <!-- Paneel: boodschappenlijst -->
+  <section id="paneelLijst" role="tabpanel" aria-labelledby="tabLijst" style="display:flex;flex-direction:column;gap:10px">
+    <form class="toevoegen" id="formLijst" autocomplete="off">
+      <div class="invoerrij">
+        <input type="text" id="invoerLijst" placeholder="Product toevoegen…" aria-label="Product toevoegen">
+        <div class="stepper" id="stepLijst"></div>
+        <button type="submit" class="hoofd">Toevoegen</button>
+      </div>
+      <label class="optie"><input type="checkbox" id="ookStandaard"> Ook bewaren bij standaardproducten</label>
+    </form>
+
+    <h2>Nog halen <span id="aantalTeHalen"></span></h2>
+    <ul id="lijstTeHalen"></ul>
+    <p class="leeg" id="leegTeHalen" hidden></p>
+
+    <h2>In de kar <span id="aantalGedaan"></span></h2>
+    <ul id="lijstGedaan"></ul>
+    <p class="leeg" id="leegGedaan" hidden>Nog niets afgevinkt.</p>
+
+    <div class="acties" id="acties">
+      <button type="button" class="tweede" id="wisGedaan">Afgevinkte producten van de lijst halen</button>
     </div>
-    <label class="std"><input type="checkbox" id="alsStandaard"> Opslaan als standaardproduct ★</label>
-  </form>
+  </section>
 
-  <h2>Nog halen <span id="aantalTeHalen"></span></h2>
-  <ul id="lijstTeHalen"></ul>
-  <p class="leeg" id="leegTeHalen" hidden>Alles gehaald. Op naar de kassa!</p>
+  <!-- Paneel: standaardproducten -->
+  <section id="paneelStandaard" role="tabpanel" aria-labelledby="tabStandaard" hidden style="display:flex;flex-direction:column;gap:10px">
+    <form class="toevoegen" id="formStandaard" autocomplete="off">
+      <div class="invoerrij">
+        <input type="text" id="invoerStandaard" placeholder="Nieuw standaardproduct…" aria-label="Nieuw standaardproduct">
+        <div class="stepper" id="stepStandaard"></div>
+        <button type="submit" class="hoofd">Opslaan</button>
+      </div>
+    </form>
 
-  <h2>In de kar <span id="aantalGedaan"></span></h2>
-  <ul id="lijstGedaan"></ul>
-  <p class="leeg" id="leegGedaan" hidden>Nog niets afgevinkt.</p>
+    <h2>Kies wat je deze keer nodig hebt <span id="aantalStandaard"></span></h2>
+    <ul id="lijstStandaard"></ul>
+    <p class="leeg" id="leegStandaard" hidden>Nog geen standaardproducten. Voeg hierboven producten toe die je vaak koopt.</p>
 
-  <div class="acties" id="acties">
-    <button type="button" class="hoofd" id="nieuweRonde">Nieuwe boodschappenronde</button>
-    <button type="button" class="tweede" id="wisGedaan">Afgevinkte losse producten wissen</button>
-  </div>
-
-  <p class="uitleg">
-    ★ betekent standaardproduct. Tik op de ster om dat aan of uit te zetten.
-    Bij een nieuwe boodschappenronde komen alle standaardproducten terug op "Nog halen" en verdwijnen afgevinkte losse producten.
-    Iedereen met wie je deze pagina deelt ziet dezelfde lijst, en afvinken verschijnt meteen bij de ander.
-  </p>
+    <p class="uitleg">
+      Tik op <strong>+ Lijst</strong> om een product met de gekozen hoeveelheid op de boodschappenlijst te zetten. Groen betekent dat het er al op staat; tik nog eens om het er weer af te halen.
+      De hoeveelheid hier is de gebruikelijke hoeveelheid. Op de lijst kun je die per keer aanpassen.
+    </p>
+  </section>
 </main>
 
 <script>
 (function () {
   const $ = id => document.getElementById(id);
-  let db = null, col = null, items = [], magSchrijven = true;
+  let db = null, colLijst = null, colStd = null;
+  let lijst = [], standaard = [], magSchrijven = true;
+  const geladen = { lijst: false, std: false };
 
+  // ---------- hulpjes ----------
   function melding(tekst, fout) {
     const m = $("melding");
     m.textContent = tekst || "";
     m.hidden = !tekst;
     m.classList.toggle("fout", !!fout);
   }
-
   function zetBewerkbaar(aan) {
     magSchrijven = aan;
-    document.querySelectorAll("#formulier input, #formulier button, #acties button").forEach(el => el.disabled = !aan);
+    document.querySelectorAll("form input, form button, #acties button").forEach(el => el.disabled = !aan);
+    toon();
   }
-
   async function schrijf(fn) {
     if (!db || !magSchrijven) return;
     try { await fn(); }
     catch (e) {
       if (e && e.code === "invalid_argument") {
         zetBewerkbaar(false);
-        melding("Je kunt deze lijst bekijken maar niet aanpassen. Vraag de eigenaar om je als bijdrager toe te voegen.", true);
+        melding("Je kunt deze lijst bekijken maar niet aanpassen. Vraag de eigenaar om je als bewerker toe te voegen.", true);
       } else if (e && e.code === "quota_exceeded") {
         melding("De lijst is vol. Verwijder een paar producten en probeer het opnieuw.", true);
       } else {
@@ -172,120 +216,198 @@
       }
     }
   }
+  const knop = (tekst, cls, label) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = cls; b.textContent = tekst;
+    if (label) { b.title = label; b.setAttribute("aria-label", label); }
+    b.disabled = !magSchrijven;
+    return b;
+  };
 
-  function maakRij(item) {
+  // Stepper: lokaal getal, schrijft pas na een korte pauze (één write per document tegelijk)
+  const wachtrij = new Map();
+  function uitgesteld(sleutel, fn) {
+    clearTimeout(wachtrij.get(sleutel));
+    wachtrij.set(sleutel, setTimeout(() => { wachtrij.delete(sleutel); schrijf(fn); }, 450));
+  }
+  function maakStepper(waarde, opWijziging, naamLabel) {
+    const s = document.createElement("div");
+    s.className = "stepper";
+    let n = Math.max(1, waarde || 1);
+    const min = knop("−", "", "Minder " + naamLabel);
+    const getal = document.createElement("span");
+    getal.className = "getal"; getal.textContent = n;
+    const plus = knop("+", "", "Meer " + naamLabel);
+    min.addEventListener("click", () => { if (n > 1) { n--; getal.textContent = n; opWijziging(n); } });
+    plus.addEventListener("click", () => { if (n < 99) { n++; getal.textContent = n; opWijziging(n); } });
+    s.append(min, getal, plus);
+    s.waarde = () => n;
+    s.zet = v => { n = v; getal.textContent = v; };
+    return s;
+  }
+  function verwijderKnop(naam, vragen, fn) {
+    const weg = knop("✕", "icoon", naam + " verwijderen");
+    let t = null;
+    weg.addEventListener("click", () => {
+      if (vragen && !weg.classList.contains("zeker")) {
+        weg.classList.add("zeker"); weg.textContent = "Zeker?";
+        t = setTimeout(() => { weg.classList.remove("zeker"); weg.textContent = "✕"; }, 3000);
+        return;
+      }
+      clearTimeout(t); fn();
+    });
+    return weg;
+  }
+  const opVolgorde = (a, b) => (a.volgorde ?? 0) - (b.volgorde ?? 0);
+  const volgendeVolgorde = arr => arr.reduce((m, i) => Math.max(m, i.volgorde ?? 0), 0) + 1;
+  const zoekNaam = (arr, naam) => arr.find(i => (i.naam || "").toLowerCase() === naam.toLowerCase());
+
+  // ---------- tabbladen ----------
+  function kiesTab(welke) {
+    const lijstAan = welke !== "standaard";
+    $("tabLijst").setAttribute("aria-selected", lijstAan);
+    $("tabStandaard").setAttribute("aria-selected", !lijstAan);
+    $("paneelLijst").hidden = !lijstAan;
+    $("paneelStandaard").hidden = lijstAan;
+    try { localStorage.setItem("jumbo-tab", lijstAan ? "lijst" : "standaard"); } catch (e) {}
+  }
+  $("tabLijst").addEventListener("click", () => kiesTab("lijst"));
+  $("tabStandaard").addEventListener("click", () => kiesTab("standaard"));
+  try { kiesTab(localStorage.getItem("jumbo-tab") || "lijst"); } catch (e) { kiesTab("lijst"); }
+
+  // ---------- rijen ----------
+  function rijLijst(item) {
     const li = document.createElement("li");
     if (item.gedaan) li.className = "gedaan";
 
     const vink = document.createElement("input");
-    vink.type = "checkbox";
-    vink.id = "vink-" + item.id;
-    vink.checked = item.gedaan;
-    vink.disabled = !magSchrijven;
+    vink.type = "checkbox"; vink.id = "vink-" + item.id;
+    vink.checked = !!item.gedaan; vink.disabled = !magSchrijven;
     vink.setAttribute("aria-label", item.naam + " gehaald");
-    vink.addEventListener("change", () => schrijf(() => col.doc(item.id).update({ gedaan: vink.checked })));
+    vink.addEventListener("change", () => schrijf(() => colLijst.doc(item.id).update({ gedaan: vink.checked })));
 
     const naam = document.createElement("span");
-    naam.className = "naam";
-    naam.textContent = item.naam;
+    naam.className = "naam klik"; naam.textContent = item.naam;
     naam.addEventListener("click", () => { if (magSchrijven) { vink.checked = !vink.checked; vink.dispatchEvent(new Event("change")); } });
 
-    const ster = document.createElement("button");
-    ster.type = "button";
-    ster.className = "icoon" + (item.standaard ? " aan" : "");
-    ster.textContent = item.standaard ? "★" : "☆";
-    ster.title = item.standaard ? "Standaardproduct, tik om uit te zetten" : "Maak standaardproduct";
-    ster.setAttribute("aria-label", ster.title);
-    ster.disabled = !magSchrijven;
-    ster.addEventListener("click", () => schrijf(() => col.doc(item.id).update({ standaard: !item.standaard })));
+    let hoeveel;
+    if (item.gedaan) {
+      hoeveel = document.createElement("span");
+      hoeveel.className = "aantal"; hoeveel.textContent = (item.aantal || 1) + "×";
+    } else {
+      hoeveel = maakStepper(item.aantal, n => uitgesteld("l-" + item.id, () => colLijst.doc(item.id).update({ aantal: n })), item.naam);
+    }
 
-    const weg = document.createElement("button");
-    weg.type = "button";
-    weg.className = "icoon";
-    weg.textContent = "✕";
-    weg.title = "Verwijderen";
-    weg.setAttribute("aria-label", item.naam + " verwijderen");
-    weg.disabled = !magSchrijven;
-    let timer = null;
-    weg.addEventListener("click", () => {
-      if (item.standaard && !weg.classList.contains("zeker")) {
-        weg.classList.add("zeker");
-        weg.textContent = "Zeker?";
-        timer = setTimeout(() => { weg.classList.remove("zeker"); weg.textContent = "✕"; }, 3000);
-        return;
-      }
-      clearTimeout(timer);
-      schrijf(() => col.doc(item.id).delete());
-    });
-
-    li.append(vink, naam, ster, weg);
+    const weg = verwijderKnop(item.naam, false, () => schrijf(() => colLijst.doc(item.id).delete()));
+    li.append(vink, naam, hoeveel, weg);
     return li;
   }
 
-  function toon() {
-    const gesorteerd = items.slice().sort((a, b) => (a.volgorde ?? 0) - (b.volgorde ?? 0));
-    const teHalen = gesorteerd.filter(i => !i.gedaan);
-    const gedaan = gesorteerd.filter(i => i.gedaan);
-    $("lijstTeHalen").replaceChildren(...teHalen.map(maakRij));
-    $("lijstGedaan").replaceChildren(...gedaan.map(maakRij));
-    $("leegTeHalen").hidden = teHalen.length > 0 || items.length === 0;
-    $("leegGedaan").hidden = gedaan.length > 0 || items.length === 0;
-    $("aantalTeHalen").textContent = teHalen.length;
-    $("aantalGedaan").textContent = gedaan.length;
-    $("teller").textContent = items.length
-      ? `${gedaan.length} van ${items.length} gehaald · nog ${teHalen.length} te gaan`
-      : "Nog geen producten";
-    $("balk").style.width = items.length ? (gedaan.length / items.length * 100) + "%" : "0";
+  function rijStandaard(p) {
+    const li = document.createElement("li");
+    const opLijst = lijst.find(i => i.standaardId === p.id && !i.gedaan);
+    if (opLijst) li.className = "oplijst";
+
+    const naam = document.createElement("span");
+    naam.className = "naam"; naam.textContent = p.naam;
+
+    const stap = maakStepper(opLijst ? opLijst.aantal : p.aantal, n => {
+      if (opLijst) uitgesteld("l-" + opLijst.id, () => colLijst.doc(opLijst.id).update({ aantal: n }));
+      else uitgesteld("s-" + p.id, () => colStd.doc(p.id).update({ aantal: n }));
+    }, p.naam);
+
+    const kies = knop(opLijst ? "✓ Op lijst" : "+ Lijst", "kies" + (opLijst ? " aan" : ""),
+      opLijst ? p.naam + " van de lijst halen" : p.naam + " op de lijst zetten");
+    kies.addEventListener("click", () => {
+      if (opLijst) { schrijf(() => colLijst.doc(opLijst.id).delete()); return; }
+      const n = stap.waarde();
+      const oudGehaald = lijst.find(i => i.standaardId === p.id && i.gedaan);
+      if (oudGehaald) schrijf(() => colLijst.doc(oudGehaald.id).update({ gedaan: false, aantal: n }));
+      else schrijf(() => colLijst.add({ naam: p.naam, aantal: n, gedaan: false, standaardId: p.id, volgorde: volgendeVolgorde(lijst) }));
+    });
+
+    const weg = verwijderKnop(p.naam, true, () => schrijf(() => colStd.doc(p.id).delete()));
+    li.append(naam, stap, kies, weg);
+    return li;
   }
 
-  $("formulier").addEventListener("submit", e => {
-    e.preventDefault();
-    const naam = $("invoer").value.trim();
-    if (!naam || !db) return;
-    const std = $("alsStandaard").checked;
-    const bestaand = items.find(i => i.naam.toLowerCase() === naam.toLowerCase());
-    $("invoer").value = "";
-    $("invoer").focus();
-    if (bestaand) {
-      const wijziging = { gedaan: false };
-      if (std) wijziging.standaard = true;
-      schrijf(() => col.doc(bestaand.id).update(wijziging));
-    } else {
-      const max = items.reduce((m, i) => Math.max(m, i.volgorde ?? 0), 0);
-      schrijf(() => col.add({ naam, gedaan: false, standaard: std, volgorde: max + 1 }));
+  // ---------- tekenen ----------
+  function toon() {
+    const l = lijst.slice().sort(opVolgorde);
+    const teHalen = l.filter(i => !i.gedaan), gedaan = l.filter(i => i.gedaan);
+    $("lijstTeHalen").replaceChildren(...teHalen.map(rijLijst));
+    $("lijstGedaan").replaceChildren(...gedaan.map(rijLijst));
+    const leeg = $("leegTeHalen");
+    leeg.hidden = teHalen.length > 0 || !geladen.lijst;
+    leeg.textContent = gedaan.length ? "Alles gehaald. Op naar de kassa!" : "De lijst is leeg. Voeg hierboven een product toe of kies iets bij Standaard.";
+    $("leegGedaan").hidden = gedaan.length > 0 || !geladen.lijst || l.length === 0;
+    $("aantalTeHalen").textContent = teHalen.length;
+    $("aantalGedaan").textContent = gedaan.length;
+    $("nLijst").textContent = teHalen.length ? "(" + teHalen.length + ")" : "";
+
+    const s = standaard.slice().sort((a, b) => (a.naam || "").localeCompare(b.naam || "", "nl"));
+    $("lijstStandaard").replaceChildren(...s.map(rijStandaard));
+    $("leegStandaard").hidden = s.length > 0 || !geladen.std;
+    $("aantalStandaard").textContent = s.length;
+    $("nStandaard").textContent = s.length ? "(" + s.length + ")" : "";
+
+    if (geladen.lijst) {
+      $("teller").textContent = l.length
+        ? `${gedaan.length} van ${l.length} gehaald · nog ${teHalen.length} te gaan`
+        : "Lijst is leeg";
+      $("balk").style.width = l.length ? (gedaan.length / l.length * 100) + "%" : "0";
     }
+  }
+
+  // ---------- formulieren ----------
+  const stepLijst = maakStepper(1, () => {}, "nieuw product");
+  $("stepLijst").replaceWith(stepLijst);
+  const stepStd = maakStepper(1, () => {}, "nieuw standaardproduct");
+  $("stepStandaard").replaceWith(stepStd);
+
+  $("formLijst").addEventListener("submit", e => {
+    e.preventDefault();
+    const naam = $("invoerLijst").value.trim();
+    if (!naam || !db) return;
+    const n = stepLijst.waarde();
+    const ookStd = $("ookStandaard").checked;
+    $("invoerLijst").value = ""; stepLijst.zet(1); $("invoerLijst").focus();
+
+    schrijf(async () => {
+      let std = zoekNaam(standaard, naam);
+      if (ookStd && !std) {
+        const ref = await colStd.add({ naam, aantal: n });
+        std = { id: ref.id };
+      }
+      const bestaand = zoekNaam(lijst, naam);
+      if (bestaand) await colLijst.doc(bestaand.id).update({ gedaan: false, aantal: n });
+      else {
+        const nieuw = { naam, aantal: n, gedaan: false, volgorde: volgendeVolgorde(lijst) };
+        if (std) nieuw.standaardId = std.id;
+        await colLijst.add(nieuw);
+      }
+    });
   });
 
-  // Nieuwe ronde met bevestiging in de pagina zelf
-  const acties = $("acties");
-  const rondeKnop = $("nieuweRonde"), wisKnop = $("wisGedaan");
-  rondeKnop.addEventListener("click", () => {
-    const vraag = document.createElement("span");
-    vraag.className = "vraag";
-    vraag.textContent = "Standaardproducten terug naar \"Nog halen\"?";
-    const ja = document.createElement("button");
-    ja.type = "button"; ja.className = "gevaar"; ja.textContent = "Ja, nieuwe ronde";
-    const nee = document.createElement("button");
-    nee.type = "button"; nee.className = "tweede"; nee.textContent = "Annuleren";
-    nee.addEventListener("click", () => acties.replaceChildren(rondeKnop, wisKnop));
-    ja.addEventListener("click", async () => {
-      acties.replaceChildren(rondeKnop, wisKnop);
-      const ops = [];
-      for (const i of items) {
-        if (i.standaard && i.gedaan) ops.push(() => col.doc(i.id).update({ gedaan: false }));
-        else if (!i.standaard && i.gedaan) ops.push(() => col.doc(i.id).delete());
-      }
-      await schrijf(() => Promise.all(ops.map(f => f())));
-    });
-    acties.replaceChildren(vraag, ja, nee);
+  $("formStandaard").addEventListener("submit", e => {
+    e.preventDefault();
+    const naam = $("invoerStandaard").value.trim();
+    if (!naam || !db) return;
+    const n = stepStd.waarde();
+    $("invoerStandaard").value = ""; stepStd.zet(1); $("invoerStandaard").focus();
+    const bestaand = zoekNaam(standaard, naam);
+    if (bestaand) schrijf(() => colStd.doc(bestaand.id).update({ aantal: n }));
+    else schrijf(() => colStd.add({ naam, aantal: n }));
   });
-  wisKnop.addEventListener("click", () => {
-    const weg = items.filter(i => !i.standaard && i.gedaan);
-    schrijf(() => Promise.all(weg.map(i => col.doc(i.id).delete())));
+
+  $("wisGedaan").addEventListener("click", () => {
+    const weg = lijst.filter(i => i.gedaan);
+    schrijf(() => Promise.all(weg.map(i => colLijst.doc(i.id).delete())));
   });
 
   toon();
 
+  // ---------- verbinden ----------
   async function start() {
     if (!window.claude || !window.claude.use) {
       melding("Open deze pagina via claude.ai om de gedeelde lijst te gebruiken.", true);
@@ -303,25 +425,30 @@
       const mag = user ? await user.can("data.write") : null;
       if (mag === false) {
         zetBewerkbaar(false);
-        melding("Je kunt deze lijst bekijken maar niet aanpassen. Vraag de eigenaar om je als bijdrager toe te voegen.");
+        melding("Je kunt deze lijst bekijken maar niet aanpassen. Vraag de eigenaar om je als bewerker toe te voegen.");
       }
     } catch (e) {}
 
-    col = db.collection("items");
-    let laadTimer = setTimeout(() => {
-      melding(items.length ? "De lijst is misschien niet actueel. Controleer je verbinding." : "De lijst is nog niet bereikbaar. Controleer je verbinding.", true);
+    colLijst = db.collection("items");
+    colStd = db.collection("standaard");
+    const laadTimer = setTimeout(() => {
+      melding(geladen.lijst ? "De lijst is misschien niet actueel. Controleer je verbinding." : "De lijst is nog niet bereikbaar. Controleer je verbinding.", true);
     }, 10000);
-    col.onSnapshot(snap => {
-      items = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-      if (!snap.metadata.fromCache) {
-        clearTimeout(laadTimer);
-        if (magSchrijven) melding(items.length ? "" : "De lijst is nog leeg. Voeg hierboven je eerste product toe.");
-      }
+    const klaar = () => {
+      if (geladen.lijst && geladen.std) { clearTimeout(laadTimer); if (magSchrijven) melding(""); }
+    };
+    const fout = () => { clearTimeout(laadTimer); melding("De verbinding met de gedeelde lijst is verbroken. Herlaad de pagina.", true); };
+
+    colLijst.onSnapshot(snap => {
+      lijst = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      if (!snap.metadata.fromCache) { geladen.lijst = true; klaar(); }
       toon();
-    }, err => {
-      clearTimeout(laadTimer);
-      melding("De verbinding met de gedeelde lijst is verbroken. Herlaad de pagina.", true);
-    });
+    }, fout);
+    colStd.onSnapshot(snap => {
+      standaard = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      if (!snap.metadata.fromCache) { geladen.std = true; klaar(); }
+      toon();
+    }, fout);
   }
   start();
 })();
