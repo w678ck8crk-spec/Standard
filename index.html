@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ffd400">
+<title>Boodschappenlijst Jumbo</title>
+<style>
+  :root {
+    --geel: #ffd400;
+    --geel-donker: #e6bf00;
+    --tekst: #1d1d1b;
+    --zacht: #6b6b6b;
+    --achtergrond: #f6f5f0;
+    --kaart: #ffffff;
+    --lijn: #e5e3dc;
+    --groen: #2e8b57;
+    --rood: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --tekst: #f2f2ee;
+      --zacht: #a5a5a0;
+      --achtergrond: #161614;
+      --kaart: #22221f;
+      --lijn: #34342f;
+      --groen: #5cc48a;
+      --rood: #ff7a6b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--achtergrond);
+    color: var(--tekst);
+    -webkit-tap-highlight-color: transparent;
+  }
+  header {
+    background: var(--geel);
+    color: #1d1d1b;
+    padding: 20px 16px 16px;
+    position: sticky; top: 0; z-index: 5;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 1.5rem; }
+  .sub { margin-top: 4px; font-size: .9rem; }
+  .voortgang { margin-top: 10px; height: 8px; background: rgba(0,0,0,.15); border-radius: 4px; overflow: hidden; }
+  .voortgang div { height: 100%; background: #1d1d1b; width: 0; transition: width .25s; }
+  main { padding: 16px; }
+  form.toevoegen {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    background: var(--kaart); border: 1px solid var(--lijn);
+    border-radius: 12px; padding: 12px;
+  }
+  form.toevoegen input[type=text] {
+    flex: 1 1 200px; min-width: 0;
+    font-size: 1rem; padding: 10px 12px;
+    border: 1px solid var(--lijn); border-radius: 8px;
+    background: var(--achtergrond); color: var(--tekst);
+  }
+  .rij { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: space-between; }
+  label.std { font-size: .9rem; color: var(--zacht); display: flex; align-items: center; gap: 6px; }
+  button {
+    font: inherit; cursor: pointer; border: 0; border-radius: 8px;
+    padding: 10px 14px; background: var(--geel); color: #1d1d1b; font-weight: 600;
+  }
+  button:hover { background: var(--geel-donker); }
+  button.secundair { background: transparent; color: var(--tekst); border: 1px solid var(--lijn); font-weight: 500; }
+  h2 { font-size: 1rem; margin: 22px 0 8px; color: var(--zacht); text-transform: uppercase; letter-spacing: .04em; }
+  ul { list-style: none; margin: 0; padding: 0; background: var(--kaart); border: 1px solid var(--lijn); border-radius: 12px; overflow: hidden; }
+  ul:empty { display: none; }
+  li { display: flex; align-items: center; gap: 12px; padding: 12px; border-top: 1px solid var(--lijn); }
+  li:first-child { border-top: 0; }
+  li input[type=checkbox] { width: 24px; height: 24px; accent-color: var(--groen); flex: none; cursor: pointer; }
+  li .naam { flex: 1; min-width: 0; overflow-wrap: anywhere; cursor: pointer; }
+  li.gedaan .naam { text-decoration: line-through; color: var(--zacht); }
+  .ster, .weg { background: transparent; padding: 6px 8px; font-size: 1.1rem; color: var(--zacht); font-weight: 400; }
+  .ster:hover, .weg:hover { background: var(--lijn); }
+  .ster.aan { color: #d4a800; }
+  .weg:hover { color: var(--rood); }
+  .leeg { color: var(--zacht); font-size: .95rem; padding: 4px 2px; }
+  .acties { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
+  .uitleg { font-size: .85rem; color: var(--zacht); margin-top: 16px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>🛒 Boodschappen Jumbo</h1>
+    <div class="sub" id="teller">–</div>
+    <div class="voortgang"><div id="balk"></div></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <form class="toevoegen" id="formulier" autocomplete="off">
+    <input type="text" id="invoer" placeholder="Product toevoegen…" aria-label="Product">
+    <button type="submit">Toevoegen</button>
+    <div class="rij">
+      <label class="std"><input type="checkbox" id="alsStandaard"> Als standaardproduct opslaan ★</label>
+    </div>
+  </form>
+
+  <h2>Nog halen</h2>
+  <ul id="lijstTeHalen"></ul>
+  <p class="leeg" id="leegTeHalen" hidden>Alles gehaald! 🎉</p>
+
+  <h2>In de kar</h2>
+  <ul id="lijstGedaan"></ul>
+  <p class="leeg" id="leegGedaan" hidden>Nog niets afgevinkt.</p>
+
+  <div class="acties">
+    <button id="nieuweRonde">Nieuwe boodschappenronde</button>
+    <button class="secundair" id="wisGedaan">Afgevinkte losse producten wissen</button>
+  </div>
+
+  <p class="uitleg">
+    ★ = standaardproduct. Tik op de ster om een product standaard te maken (of niet).<br>
+    <strong>Nieuwe boodschappenronde</strong>: alle standaardproducten komen weer op "nog halen" en afgevinkte losse producten verdwijnen.<br>
+    De lijst wordt bewaard op dit apparaat.
+  </p>
+</main>
+
+<script>
+const OPSLAG = "jumbo-boodschappen-v1";
+
+const BEGINLIJST = [
+  ["Yoghurt linde", false],
+  ["Skyr Bas", false],
+  ["Crème fraiche 2", false],
+  ["Red bull sakura", false],
+  ["Madras 2 dozen", true],
+  ["Crackers volkoren", true],
+  ["Beschuit normaal wit", true],
+  ["Melk", true],
+  ["Hagelslag puur Ruijter", true],
+  ["Kaas", true],
+  ["Brood", true],
+  ["Kip", true],
+  ["Maaltijdsalades", true],
+  ["Sperzieboon 800", true],
+  ["Appels 2", true],
+  ["Bananen 2", true],
+  ["Lasagne", true],
+];
+
+function nieuwId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function laad() {
+  try {
+    const data = JSON.parse(localStorage.getItem(OPSLAG));
+    if (Array.isArray(data)) return data;
+  } catch (e) {}
+  return BEGINLIJST.map(([naam, gedaan]) => ({ id: nieuwId(), naam, gedaan, standaard: true }));
+}
+
+let items = laad();
+
+function bewaar() {
+  try { localStorage.setItem(OPSLAG, JSON.stringify(items)); } catch (e) {}
+}
+
+function maakRij(item) {
+  const li = document.createElement("li");
+  if (item.gedaan) li.className = "gedaan";
+
+  const vink = document.createElement("input");
+  vink.type = "checkbox";
+  vink.checked = item.gedaan;
+  vink.setAttribute("aria-label", item.naam + " gehaald");
+  vink.addEventListener("change", () => { item.gedaan = vink.checked; wijzig(); });
+
+  const naam = document.createElement("span");
+  naam.className = "naam";
+  naam.textContent = item.naam;
+  naam.addEventListener("click", () => { item.gedaan = !item.gedaan; wijzig(); });
+
+  const ster = document.createElement("button");
+  ster.className = "ster" + (item.standaard ? " aan" : "");
+  ster.textContent = item.standaard ? "★" : "☆";
+  ster.title = item.standaard ? "Standaardproduct (tik om uit te zetten)" : "Maak standaardproduct";
+  ster.addEventListener("click", () => { item.standaard = !item.standaard; wijzig(); });
+
+  const weg = document.createElement("button");
+  weg.className = "weg";
+  weg.textContent = "✕";
+  weg.title = "Verwijderen";
+  weg.addEventListener("click", () => {
+    if (item.standaard && !confirm(`"${item.naam}" is een standaardproduct. Echt verwijderen?`)) return;
+    items = items.filter(i => i !== item);
+    wijzig();
+  });
+
+  li.append(vink, naam, ster, weg);
+  return li;
+}
+
+function toon() {
+  const teHalen = items.filter(i => !i.gedaan);
+  const gedaan = items.filter(i => i.gedaan);
+  const l1 = document.getElementById("lijstTeHalen");
+  const l2 = document.getElementById("lijstGedaan");
+  l1.replaceChildren(...teHalen.map(maakRij));
+  l2.replaceChildren(...gedaan.map(maakRij));
+  document.getElementById("leegTeHalen").hidden = teHalen.length > 0 || items.length === 0;
+  document.getElementById("leegGedaan").hidden = gedaan.length > 0;
+  document.getElementById("teller").textContent =
+    `${gedaan.length} van ${items.length} gehaald · nog ${teHalen.length} te gaan`;
+  document.getElementById("balk").style.width = items.length ? (gedaan.length / items.length * 100) + "%" : "0";
+}
+
+function wijzig() { bewaar(); toon(); }
+
+document.getElementById("formulier").addEventListener("submit", e => {
+  e.preventDefault();
+  const invoer = document.getElementById("invoer");
+  const naam = invoer.value.trim();
+  if (!naam) return;
+  const bestaand = items.find(i => i.naam.toLowerCase() === naam.toLowerCase());
+  if (bestaand) {
+    bestaand.gedaan = false;
+    if (document.getElementById("alsStandaard").checked) bestaand.standaard = true;
+  } else {
+    items.push({ id: nieuwId(), naam, gedaan: false, standaard: document.getElementById("alsStandaard").checked });
+  }
+  invoer.value = "";
+  invoer.focus();
+  wijzig();
+});
+
+document.getElementById("nieuweRonde").addEventListener("click", () => {
+  if (!confirm("Nieuwe ronde starten? Standaardproducten gaan terug naar 'nog halen'.")) return;
+  items = items.filter(i => i.standaard || !i.gedaan);
+  items.forEach(i => { if (i.standaard) i.gedaan = false; });
+  wijzig();
+});
+
+document.getElementById("wisGedaan").addEventListener("click", () => {
+  items = items.filter(i => i.standaard || !i.gedaan);
+  wijzig();
+});
+
+window.addEventListener("storage", e => { if (e.key === OPSLAG) { items = laad(); toon(); } });
+
+toon();
+</script>
+</body>
+</html>
