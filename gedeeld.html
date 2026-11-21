@@ -110,6 +110,20 @@
   li .naam.klik { cursor: pointer; }
   li.gedaan .naam { text-decoration: line-through; color: var(--zacht); }
   li.oplijst { background: var(--groen-zacht); }
+  li.kop {
+    min-height: 0; padding: 8px 12px 6px; background: var(--veld);
+    font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--zacht);
+    display: flex; justify-content: space-between;
+  }
+  li.kop span { font-variant-numeric: tabular-nums; }
+  .naamblok { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .naamblok .naam { flex: none; padding-block: 2px 0; }
+  select {
+    font: inherit; color: var(--fg); background: var(--veld);
+    border: 1px solid var(--lijn); border-radius: 8px; padding: 8px 10px; max-width: 100%;
+  }
+  select.klein { font-size: .8rem; padding: 2px 6px; color: var(--zacht); background: transparent; align-self: flex-start; }
+  .optierij { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
   .icoon { background: transparent; color: var(--zacht); padding: 8px 10px; font-size: 1.05rem; line-height: 1; flex: none; }
   .icoon:hover { background: var(--veld); }
   .icoon.zeker { background: var(--rood); color: #fff; font-size: .8rem; font-weight: 600; }
@@ -146,7 +160,10 @@
         <div class="stepper" id="stepLijst"></div>
         <button type="submit" class="hoofd">Toevoegen</button>
       </div>
-      <label class="optie"><input type="checkbox" id="ookStandaard"> Ook bewaren bij standaardproducten</label>
+      <div class="optierij">
+        <select id="catLijst" aria-label="Categorie"></select>
+        <label class="optie"><input type="checkbox" id="ookStandaard"> Ook bewaren bij standaardproducten</label>
+      </div>
     </form>
 
     <h2>Nog halen <span id="aantalTeHalen"></span></h2>
@@ -169,6 +186,9 @@
         <input type="text" id="invoerStandaard" placeholder="Nieuw standaardproduct…" aria-label="Nieuw standaardproduct">
         <div class="stepper" id="stepStandaard"></div>
         <button type="submit" class="hoofd">Opslaan</button>
+      </div>
+      <div class="optierij">
+        <select id="catStandaard" aria-label="Categorie"></select>
       </div>
     </form>
 
@@ -199,7 +219,7 @@
   }
   function zetBewerkbaar(aan) {
     magSchrijven = aan;
-    document.querySelectorAll("form input, form button, #acties button").forEach(el => el.disabled = !aan);
+    document.querySelectorAll("form input, form button, form select, #acties button").forEach(el => el.disabled = !aan);
     toon();
   }
   async function schrijf(fn) {
@@ -258,6 +278,41 @@
     });
     return weg;
   }
+  // Categorieën in de volgorde waarin je ongeveer door de winkel loopt
+  const CATEGORIEEN = [
+    "Groente & fruit", "Brood & ontbijt", "Kaas & vleeswaren", "Vlees & vis",
+    "Maaltijden & salades", "Zuivel & eieren", "Voorraadkast", "Diepvries",
+    "Snacks & snoep", "Dranken", "Drogisterij & huishouden", "Overig"
+  ];
+  const geldigeCat = c => CATEGORIEEN.includes(c) ? c : "Overig";
+  function catVan(item) {
+    const std = item.standaardId && standaard.find(s => s.id === item.standaardId);
+    return geldigeCat((std && std.categorie) || item.categorie);
+  }
+  function vulCategorieen(sel, gekozen) {
+    sel.replaceChildren(...CATEGORIEEN.map(c => {
+      const o = document.createElement("option");
+      o.value = c; o.textContent = c; o.selected = c === gekozen;
+      return o;
+    }));
+    sel.value = gekozen;
+  }
+  // Zet rijen gegroepeerd per categorie, met een kopje per groep
+  function gegroepeerd(items, catFn, sorteer, maakRij) {
+    const uit = [];
+    for (const c of CATEGORIEEN) {
+      const groep = items.filter(i => catFn(i) === c).sort(sorteer);
+      if (!groep.length) continue;
+      const kop = document.createElement("li");
+      kop.className = "kop";
+      const t = document.createElement("span"); t.textContent = c;
+      const n = document.createElement("span"); n.textContent = groep.length;
+      kop.append(t, n);
+      uit.push(kop, ...groep.map(maakRij));
+    }
+    return uit;
+  }
+  const opNaam = (a, b) => (a.naam || "").localeCompare(b.naam || "", "nl");
   const opVolgorde = (a, b) => (a.volgorde ?? 0) - (b.volgorde ?? 0);
   const volgendeVolgorde = arr => arr.reduce((m, i) => Math.max(m, i.volgorde ?? 0), 0) + 1;
   const zoekNaam = (arr, naam) => arr.find(i => (i.naam || "").toLowerCase() === naam.toLowerCase());
@@ -308,8 +363,17 @@
     const opLijst = lijst.find(i => i.standaardId === p.id && !i.gedaan);
     if (opLijst) li.className = "oplijst";
 
+    const blok = document.createElement("div");
+    blok.className = "naamblok";
     const naam = document.createElement("span");
     naam.className = "naam"; naam.textContent = p.naam;
+    const cat = document.createElement("select");
+    cat.className = "klein"; cat.id = "cat-" + p.id;
+    cat.setAttribute("aria-label", "Categorie van " + p.naam);
+    cat.disabled = !magSchrijven;
+    vulCategorieen(cat, geldigeCat(p.categorie));
+    cat.addEventListener("change", () => schrijf(() => colStd.doc(p.id).update({ categorie: cat.value })));
+    blok.append(naam, cat);
 
     const stap = maakStepper(opLijst ? opLijst.aantal : p.aantal, n => {
       if (opLijst) uitgesteld("l-" + opLijst.id, () => colLijst.doc(opLijst.id).update({ aantal: n }));
@@ -323,11 +387,11 @@
       const n = stap.waarde();
       const oudGehaald = lijst.find(i => i.standaardId === p.id && i.gedaan);
       if (oudGehaald) schrijf(() => colLijst.doc(oudGehaald.id).update({ gedaan: false, aantal: n }));
-      else schrijf(() => colLijst.add({ naam: p.naam, aantal: n, gedaan: false, standaardId: p.id, volgorde: volgendeVolgorde(lijst) }));
+      else schrijf(() => colLijst.add({ naam: p.naam, aantal: n, gedaan: false, standaardId: p.id, categorie: geldigeCat(p.categorie), volgorde: volgendeVolgorde(lijst) }));
     });
 
     const weg = verwijderKnop(p.naam, true, () => schrijf(() => colStd.doc(p.id).delete()));
-    li.append(naam, stap, kies, weg);
+    li.append(blok, stap, kies, weg);
     return li;
   }
 
@@ -335,7 +399,7 @@
   function toon() {
     const l = lijst.slice().sort(opVolgorde);
     const teHalen = l.filter(i => !i.gedaan), gedaan = l.filter(i => i.gedaan);
-    $("lijstTeHalen").replaceChildren(...teHalen.map(rijLijst));
+    $("lijstTeHalen").replaceChildren(...gegroepeerd(teHalen, catVan, opVolgorde, rijLijst));
     $("lijstGedaan").replaceChildren(...gedaan.map(rijLijst));
     const leeg = $("leegTeHalen");
     leeg.hidden = teHalen.length > 0 || !geladen.lijst;
@@ -345,8 +409,8 @@
     $("aantalGedaan").textContent = gedaan.length;
     $("nLijst").textContent = teHalen.length ? "(" + teHalen.length + ")" : "";
 
-    const s = standaard.slice().sort((a, b) => (a.naam || "").localeCompare(b.naam || "", "nl"));
-    $("lijstStandaard").replaceChildren(...s.map(rijStandaard));
+    const s = standaard;
+    $("lijstStandaard").replaceChildren(...gegroepeerd(s, p => geldigeCat(p.categorie), opNaam, rijStandaard));
     $("leegStandaard").hidden = s.length > 0 || !geladen.std;
     $("aantalStandaard").textContent = s.length;
     $("nStandaard").textContent = s.length ? "(" + s.length + ")" : "";
@@ -364,6 +428,8 @@
   $("stepLijst").replaceWith(stepLijst);
   const stepStd = maakStepper(1, () => {}, "nieuw standaardproduct");
   $("stepStandaard").replaceWith(stepStd);
+  vulCategorieen($("catLijst"), "Overig");
+  vulCategorieen($("catStandaard"), "Overig");
 
   $("formLijst").addEventListener("submit", e => {
     e.preventDefault();
@@ -371,18 +437,19 @@
     if (!naam || !db) return;
     const n = stepLijst.waarde();
     const ookStd = $("ookStandaard").checked;
+    const categorie = $("catLijst").value;
     $("invoerLijst").value = ""; stepLijst.zet(1); $("invoerLijst").focus();
 
     schrijf(async () => {
       let std = zoekNaam(standaard, naam);
       if (ookStd && !std) {
-        const ref = await colStd.add({ naam, aantal: n });
+        const ref = await colStd.add({ naam, aantal: n, categorie });
         std = { id: ref.id };
       }
       const bestaand = zoekNaam(lijst, naam);
       if (bestaand) await colLijst.doc(bestaand.id).update({ gedaan: false, aantal: n });
       else {
-        const nieuw = { naam, aantal: n, gedaan: false, volgorde: volgendeVolgorde(lijst) };
+        const nieuw = { naam, aantal: n, gedaan: false, categorie, volgorde: volgendeVolgorde(lijst) };
         if (std) nieuw.standaardId = std.id;
         await colLijst.add(nieuw);
       }
@@ -394,10 +461,11 @@
     const naam = $("invoerStandaard").value.trim();
     if (!naam || !db) return;
     const n = stepStd.waarde();
+    const categorie = $("catStandaard").value;
     $("invoerStandaard").value = ""; stepStd.zet(1); $("invoerStandaard").focus();
     const bestaand = zoekNaam(standaard, naam);
-    if (bestaand) schrijf(() => colStd.doc(bestaand.id).update({ aantal: n }));
-    else schrijf(() => colStd.add({ naam, aantal: n }));
+    if (bestaand) schrijf(() => colStd.doc(bestaand.id).update({ aantal: n, categorie }));
+    else schrijf(() => colStd.add({ naam, aantal: n, categorie }));
   });
 
   $("wisGedaan").addEventListener("click", () => {
