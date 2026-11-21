@@ -1,0 +1,328 @@
+<title>Boodschappen Jumbo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+  /* Layout: gele kassabon-kop die blijft staan, daaronder één smalle kolom met twee lijsten (nog halen / in de kar). */
+  :root {
+    --geel: #ffd400;
+    --op-geel: #1d1b12;
+    --bg: #f5f3ea;
+    --kaart: #ffffff;
+    --fg: #1d1b12;
+    --zacht: #6d6a5c;
+    --lijn: #e4e0cf;
+    --veld: #faf8f0;
+    --groen: #2c7d4f;
+    --rood: #b8382b;
+    --ster: #c99a00;
+    --font-kop: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-tekst: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --geel: #f2c900; --op-geel: #1d1b12;
+      --bg: #15140f; --kaart: #201f18; --fg: #f1eee2; --zacht: #a7a391;
+      --lijn: #34322a; --veld: #1a1913; --groen: #62c48b; --rood: #ff7d6e; --ster: #f2c900;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --geel: #f2c900; --op-geel: #1d1b12;
+    --bg: #15140f; --kaart: #201f18; --fg: #f1eee2; --zacht: #a7a391;
+    --lijn: #34322a; --veld: #1a1913; --groen: #62c48b; --rood: #ff7d6e; --ster: #f2c900;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font-tekst); font-size: 16px; line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--geel); }
+  .gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .wrap { max-width: 620px; margin: 0 auto; }
+  header {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+    background: var(--geel); color: var(--op-geel);
+    padding-block: 18px 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.14);
+  }
+  h1 { margin: 0; font-family: var(--font-kop); font-weight: 800; font-size: 1.6rem; letter-spacing: -.01em; text-wrap: balance; }
+  .teller { margin-top: 2px; font-size: .92rem; font-variant-numeric: tabular-nums; }
+  .balk { margin-top: 10px; height: 8px; border-radius: 4px; background: rgba(0,0,0,.16); overflow: hidden; }
+  .balk div { height: 100%; width: 0; background: var(--op-geel); transition: width .25s; }
+  main { padding-block: 16px 40px; display: flex; flex-direction: column; gap: 10px; }
+
+  .melding { font-size: .9rem; color: var(--zacht); background: var(--kaart); border: 1px dashed var(--lijn); border-radius: 10px; padding: 10px 12px; }
+  .melding.fout { color: var(--rood); }
+
+  form#formulier {
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--kaart); border: 1px solid var(--lijn); border-radius: 12px; padding: 12px;
+  }
+  .invoerrij { display: flex; gap: 8px; }
+  #invoer {
+    flex: 1; min-width: 0; font: inherit; padding: 10px 12px;
+    border: 1px solid var(--lijn); border-radius: 8px; background: var(--veld); color: var(--fg);
+  }
+  .std { font-size: .9rem; color: var(--zacht); display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .std input { width: 18px; height: 18px; accent-color: var(--ster); }
+
+  button { font: inherit; cursor: pointer; border: 0; border-radius: 8px; padding: 10px 14px; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--ster); outline-offset: 2px; }
+  .hoofd { background: var(--geel); color: var(--op-geel); font-weight: 600; }
+  .hoofd:hover { filter: brightness(.95); }
+  .tweede { background: transparent; color: var(--fg); border: 1px solid var(--lijn); }
+  .tweede:hover { background: var(--kaart); }
+  .gevaar { background: var(--rood); color: #fff; font-weight: 600; }
+  button:disabled, input:disabled { opacity: .5; cursor: not-allowed; }
+
+  h2 {
+    margin: 14px 2px 0; font-family: var(--font-tekst); font-weight: 600; font-size: .78rem;
+    text-transform: uppercase; letter-spacing: .08em; color: var(--zacht);
+    display: flex; justify-content: space-between;
+  }
+  h2 span { font-variant-numeric: tabular-nums; }
+  ul { list-style: none; margin: 0; padding: 0; background: var(--kaart); border: 1px solid var(--lijn); border-radius: 12px; overflow: hidden; }
+  ul:empty { display: none; }
+  li { display: flex; align-items: center; gap: 10px; padding: 8px 6px 8px 12px; border-top: 1px solid var(--lijn); min-height: 52px; }
+  li:first-child { border-top: 0; }
+  li input[type=checkbox] { width: 24px; height: 24px; flex: none; accent-color: var(--groen); cursor: pointer; }
+  li .naam { flex: 1; min-width: 0; overflow-wrap: anywhere; cursor: pointer; padding-block: 6px; }
+  li.gedaan .naam { text-decoration: line-through; color: var(--zacht); }
+  .icoon { background: transparent; color: var(--zacht); padding: 8px 10px; font-size: 1.1rem; line-height: 1; }
+  .icoon:hover { background: var(--veld); }
+  .icoon.aan { color: var(--ster); }
+  .icoon.zeker { background: var(--rood); color: #fff; font-size: .8rem; font-weight: 600; }
+  .leeg { margin: 0; padding: 4px 2px; color: var(--zacht); font-size: .95rem; }
+
+  .acties { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
+  .acties .vraag { font-size: .92rem; }
+  .uitleg { font-size: .85rem; color: var(--zacht); line-height: 1.55; margin: 14px 2px 0; max-width: 60ch; }
+  @media (prefers-reduced-motion: reduce) { .balk div { transition: none; } }
+</style>
+
+<header class="gutter">
+  <div class="wrap">
+    <h1>Boodschappen Jumbo</h1>
+    <div class="teller" id="teller">Lijst laden…</div>
+    <div class="balk"><div id="balk"></div></div>
+  </div>
+</header>
+
+<main class="gutter wrap">
+  <div class="melding" id="melding">De gedeelde lijst wordt geladen. Zodra hij er is, zie je hier alle producten en vink je ze samen af.</div>
+
+  <form id="formulier" autocomplete="off">
+    <div class="invoerrij">
+      <input type="text" id="invoer" placeholder="Product toevoegen…" aria-label="Product toevoegen">
+      <button type="submit" class="hoofd" id="toevoegKnop">Toevoegen</button>
+    </div>
+    <label class="std"><input type="checkbox" id="alsStandaard"> Opslaan als standaardproduct ★</label>
+  </form>
+
+  <h2>Nog halen <span id="aantalTeHalen"></span></h2>
+  <ul id="lijstTeHalen"></ul>
+  <p class="leeg" id="leegTeHalen" hidden>Alles gehaald. Op naar de kassa!</p>
+
+  <h2>In de kar <span id="aantalGedaan"></span></h2>
+  <ul id="lijstGedaan"></ul>
+  <p class="leeg" id="leegGedaan" hidden>Nog niets afgevinkt.</p>
+
+  <div class="acties" id="acties">
+    <button type="button" class="hoofd" id="nieuweRonde">Nieuwe boodschappenronde</button>
+    <button type="button" class="tweede" id="wisGedaan">Afgevinkte losse producten wissen</button>
+  </div>
+
+  <p class="uitleg">
+    ★ betekent standaardproduct. Tik op de ster om dat aan of uit te zetten.
+    Bij een nieuwe boodschappenronde komen alle standaardproducten terug op "Nog halen" en verdwijnen afgevinkte losse producten.
+    Iedereen met wie je deze pagina deelt ziet dezelfde lijst, en afvinken verschijnt meteen bij de ander.
+  </p>
+</main>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  let db = null, col = null, items = [], magSchrijven = true;
+
+  function melding(tekst, fout) {
+    const m = $("melding");
+    m.textContent = tekst || "";
+    m.hidden = !tekst;
+    m.classList.toggle("fout", !!fout);
+  }
+
+  function zetBewerkbaar(aan) {
+    magSchrijven = aan;
+    document.querySelectorAll("#formulier input, #formulier button, #acties button").forEach(el => el.disabled = !aan);
+  }
+
+  async function schrijf(fn) {
+    if (!db || !magSchrijven) return;
+    try { await fn(); }
+    catch (e) {
+      if (e && e.code === "invalid_argument") {
+        zetBewerkbaar(false);
+        melding("Je kunt deze lijst bekijken maar niet aanpassen. Vraag de eigenaar om je als bijdrager toe te voegen.", true);
+      } else if (e && e.code === "quota_exceeded") {
+        melding("De lijst is vol. Verwijder een paar producten en probeer het opnieuw.", true);
+      } else {
+        melding("Opslaan lukte niet. Controleer je verbinding en probeer het nog eens.", true);
+      }
+    }
+  }
+
+  function maakRij(item) {
+    const li = document.createElement("li");
+    if (item.gedaan) li.className = "gedaan";
+
+    const vink = document.createElement("input");
+    vink.type = "checkbox";
+    vink.id = "vink-" + item.id;
+    vink.checked = item.gedaan;
+    vink.disabled = !magSchrijven;
+    vink.setAttribute("aria-label", item.naam + " gehaald");
+    vink.addEventListener("change", () => schrijf(() => col.doc(item.id).update({ gedaan: vink.checked })));
+
+    const naam = document.createElement("span");
+    naam.className = "naam";
+    naam.textContent = item.naam;
+    naam.addEventListener("click", () => { if (magSchrijven) { vink.checked = !vink.checked; vink.dispatchEvent(new Event("change")); } });
+
+    const ster = document.createElement("button");
+    ster.type = "button";
+    ster.className = "icoon" + (item.standaard ? " aan" : "");
+    ster.textContent = item.standaard ? "★" : "☆";
+    ster.title = item.standaard ? "Standaardproduct, tik om uit te zetten" : "Maak standaardproduct";
+    ster.setAttribute("aria-label", ster.title);
+    ster.disabled = !magSchrijven;
+    ster.addEventListener("click", () => schrijf(() => col.doc(item.id).update({ standaard: !item.standaard })));
+
+    const weg = document.createElement("button");
+    weg.type = "button";
+    weg.className = "icoon";
+    weg.textContent = "✕";
+    weg.title = "Verwijderen";
+    weg.setAttribute("aria-label", item.naam + " verwijderen");
+    weg.disabled = !magSchrijven;
+    let timer = null;
+    weg.addEventListener("click", () => {
+      if (item.standaard && !weg.classList.contains("zeker")) {
+        weg.classList.add("zeker");
+        weg.textContent = "Zeker?";
+        timer = setTimeout(() => { weg.classList.remove("zeker"); weg.textContent = "✕"; }, 3000);
+        return;
+      }
+      clearTimeout(timer);
+      schrijf(() => col.doc(item.id).delete());
+    });
+
+    li.append(vink, naam, ster, weg);
+    return li;
+  }
+
+  function toon() {
+    const gesorteerd = items.slice().sort((a, b) => (a.volgorde ?? 0) - (b.volgorde ?? 0));
+    const teHalen = gesorteerd.filter(i => !i.gedaan);
+    const gedaan = gesorteerd.filter(i => i.gedaan);
+    $("lijstTeHalen").replaceChildren(...teHalen.map(maakRij));
+    $("lijstGedaan").replaceChildren(...gedaan.map(maakRij));
+    $("leegTeHalen").hidden = teHalen.length > 0 || items.length === 0;
+    $("leegGedaan").hidden = gedaan.length > 0 || items.length === 0;
+    $("aantalTeHalen").textContent = teHalen.length;
+    $("aantalGedaan").textContent = gedaan.length;
+    $("teller").textContent = items.length
+      ? `${gedaan.length} van ${items.length} gehaald · nog ${teHalen.length} te gaan`
+      : "Nog geen producten";
+    $("balk").style.width = items.length ? (gedaan.length / items.length * 100) + "%" : "0";
+  }
+
+  $("formulier").addEventListener("submit", e => {
+    e.preventDefault();
+    const naam = $("invoer").value.trim();
+    if (!naam || !db) return;
+    const std = $("alsStandaard").checked;
+    const bestaand = items.find(i => i.naam.toLowerCase() === naam.toLowerCase());
+    $("invoer").value = "";
+    $("invoer").focus();
+    if (bestaand) {
+      const wijziging = { gedaan: false };
+      if (std) wijziging.standaard = true;
+      schrijf(() => col.doc(bestaand.id).update(wijziging));
+    } else {
+      const max = items.reduce((m, i) => Math.max(m, i.volgorde ?? 0), 0);
+      schrijf(() => col.add({ naam, gedaan: false, standaard: std, volgorde: max + 1 }));
+    }
+  });
+
+  // Nieuwe ronde met bevestiging in de pagina zelf
+  const acties = $("acties");
+  const rondeKnop = $("nieuweRonde"), wisKnop = $("wisGedaan");
+  rondeKnop.addEventListener("click", () => {
+    const vraag = document.createElement("span");
+    vraag.className = "vraag";
+    vraag.textContent = "Standaardproducten terug naar \"Nog halen\"?";
+    const ja = document.createElement("button");
+    ja.type = "button"; ja.className = "gevaar"; ja.textContent = "Ja, nieuwe ronde";
+    const nee = document.createElement("button");
+    nee.type = "button"; nee.className = "tweede"; nee.textContent = "Annuleren";
+    nee.addEventListener("click", () => acties.replaceChildren(rondeKnop, wisKnop));
+    ja.addEventListener("click", async () => {
+      acties.replaceChildren(rondeKnop, wisKnop);
+      const ops = [];
+      for (const i of items) {
+        if (i.standaard && i.gedaan) ops.push(() => col.doc(i.id).update({ gedaan: false }));
+        else if (!i.standaard && i.gedaan) ops.push(() => col.doc(i.id).delete());
+      }
+      await schrijf(() => Promise.all(ops.map(f => f())));
+    });
+    acties.replaceChildren(vraag, ja, nee);
+  });
+  wisKnop.addEventListener("click", () => {
+    const weg = items.filter(i => !i.standaard && i.gedaan);
+    schrijf(() => Promise.all(weg.map(i => col.doc(i.id).delete())));
+  });
+
+  toon();
+
+  async function start() {
+    if (!window.claude || !window.claude.use) {
+      melding("Open deze pagina via claude.ai om de gedeelde lijst te gebruiken.", true);
+      zetBewerkbaar(false);
+      return;
+    }
+    db = await window.claude.use("db");
+    if (!db) {
+      melding("De gedeelde lijst is hier niet beschikbaar. Log in op claude.ai en open de link opnieuw.", true);
+      zetBewerkbaar(false);
+      return;
+    }
+    try {
+      const user = await window.claude.use("user");
+      const mag = user ? await user.can("data.write") : null;
+      if (mag === false) {
+        zetBewerkbaar(false);
+        melding("Je kunt deze lijst bekijken maar niet aanpassen. Vraag de eigenaar om je als bijdrager toe te voegen.");
+      }
+    } catch (e) {}
+
+    col = db.collection("items");
+    let laadTimer = setTimeout(() => {
+      melding(items.length ? "De lijst is misschien niet actueel. Controleer je verbinding." : "De lijst is nog niet bereikbaar. Controleer je verbinding.", true);
+    }, 10000);
+    col.onSnapshot(snap => {
+      items = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      if (!snap.metadata.fromCache) {
+        clearTimeout(laadTimer);
+        if (magSchrijven) melding(items.length ? "" : "De lijst is nog leeg. Voeg hierboven je eerste product toe.");
+      }
+      toon();
+    }, err => {
+      clearTimeout(laadTimer);
+      melding("De verbinding met de gedeelde lijst is verbroken. Herlaad de pagina.", true);
+    });
+  }
+  start();
+})();
+</script>
