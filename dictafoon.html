@@ -135,6 +135,14 @@ textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; li
 .item.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item small { color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Bewerken */
+.toolbar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 3; }
+.toolbar button { font: inherit; font-size: .84rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; cursor: pointer; }
+.toolbar button:hover { border-color: var(--muted); }
+.toolbar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+.minutes[contenteditable="true"] { border: 1.5px solid var(--accent); border-radius: 10px; padding: 4px 14px 14px; background: var(--bg); outline: none; cursor: text; }
+.minutes[contenteditable="true"]:focus { box-shadow: 0 0 0 3px var(--accent-soft); }
+.edited { font-size: .78rem; color: var(--muted); }
 /* Uploaden */
 .drop { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1.5px dashed var(--line); border-radius: 10px; padding: 12px; background: var(--bg); transition: border-color .15s, background .15s; }
 .drop.over { border-color: var(--accent); background: var(--accent-soft); }
@@ -256,12 +264,29 @@ textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; li
         <div class="notes-actions">
           <button class="btn primary" id="maak" type="button">Notulen uitwerken</button>
           <button class="btn" id="stopGen" type="button" hidden>Stop</button>
+          <button class="btn" id="bewerk" type="button" hidden>Bewerken</button>
+          <button class="btn primary" id="bewerkKlaar" type="button" hidden>Klaar met bewerken</button>
           <button class="btn ghost" id="kopieer" type="button">Kopiëren</button>
           <button class="btn" id="downloadDocx" type="button" hidden>Download Word</button>
           <button class="btn ghost" id="download" type="button" hidden>Download .md</button>
         </div>
       </div>
       <p class="msg" id="msg" role="status"></p>
+      <div class="toolbar" id="toolbar" role="toolbar" aria-label="Opmaak" hidden>
+        <button type="button" data-cmd="h2" title="Kop">Kop</button>
+        <button type="button" data-cmd="h3" title="Subkop">Subkop</button>
+        <button type="button" data-cmd="p" title="Gewone tekst">Tekst</button>
+        <span class="sep"></span>
+        <button type="button" data-cmd="bold" title="Vet (Ctrl+B)"><b>B</b></button>
+        <button type="button" data-cmd="italic" title="Cursief (Ctrl+I)"><i>I</i></button>
+        <span class="sep"></span>
+        <button type="button" data-cmd="insertUnorderedList" title="Opsomming">• Lijst</button>
+        <button type="button" data-cmd="insertOrderedList" title="Genummerde lijst">1. Lijst</button>
+        <button type="button" data-cmd="addRow" title="Rij toevoegen aan de tabel waar je cursor staat">+ Tabelrij</button>
+        <span class="sep"></span>
+        <button type="button" data-cmd="undo" title="Ongedaan maken (Ctrl+Z)">↶ Terug</button>
+        <button type="button" data-cmd="reset" title="Alle aanpassingen terugdraaien">Origineel herstellen</button>
+      </div>
       <div class="minutes" id="minutes"><div class="empty">Nog geen notulen. Neem een vergadering op of plak een transcript en kies <b>Notulen uitwerken</b>.</div></div>
     </section>
   </div>
@@ -286,7 +311,7 @@ textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; li
     device: $("device"), counter: $("counter"), statusText: $("statusText"), rec: $("rec"), recLabel: $("recLabel"), recSub: $("recSub"),
     taal: $("taal"), auto: $("auto"), partial: $("partial"), titel: $("titel"), datum: $("datum"), locatie: $("locatie"),
     deelnemers: $("deelnemers"), transcript: $("transcript"), maak: $("maak"), stopGen: $("stopGen"), kopieer: $("kopieer"),
-    download: $("download"), downloadDocx: $("downloadDocx"), msg: $("msg"), minutes: $("minutes"), archive: $("archive"), nieuw: $("nieuw"),
+    download: $("download"), downloadDocx: $("downloadDocx"), bewerk: $("bewerk"), bewerkKlaar: $("bewerkKlaar"), toolbar: $("toolbar"), msg: $("msg"), minutes: $("minutes"), archive: $("archive"), nieuw: $("nieuw"),
     sampleBadge: $("sampleBadge"), verwijder: $("verwijder"), delConfirm: $("delConfirm"), delJa: $("delJa"), delNee: $("delNee"),
     opslagHint: $("opslagHint"), dictHint: $("dictHint")
   };
@@ -343,6 +368,8 @@ textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; li
 
   // ---------- weergave ----------
   function load(m) {
+    if (editing) stopEdit();
+    disarm && disarm();
     current = m;
     el.titel.value = m.titel || ""; el.datum.value = m.datum || ""; el.locatie.value = m.locatie || "";
     el.deelnemers.value = m.deelnemers || ""; el.transcript.value = m.transcript || "";
@@ -358,7 +385,7 @@ textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; li
     if (!current) return;
     if (current.voorbeeld) { // bewerken van het voorbeeld maakt er een eigen vergadering van
       const copy = { ...current, id: uid(), voorbeeld: false, titel: current.titel.replace(/^Voorbeeld:\s*/, "") };
-      current = copy; el.sampleBadge.hidden = true;
+      current = copy; el.sampleBadge.hidden = true; el.titel.value = copy.titel;
     }
     current.titel = el.titel.value; current.datum = el.datum.value; current.locatie = el.locatie.value;
     current.deelnemers = el.deelnemers.value; current.transcript = el.transcript.value; current.duur = seconds;
@@ -410,10 +437,11 @@ textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; li
   function renderMinutes(text) {
     if (!text) {
       el.minutes.innerHTML = '<div class="empty">Nog geen notulen. Neem een vergadering op of plak een transcript en kies <b>Notulen uitwerken</b>.</div>';
-      el.download.hidden = el.downloadDocx.hidden = true; return;
+      el.download.hidden = el.downloadDocx.hidden = el.bewerk.hidden = true; return;
     }
     el.minutes.innerHTML = md(text);
     el.download.hidden = el.downloadDocx.hidden = !downloads || generating;
+    el.bewerk.hidden = generating || editing;
   }
 
   // ---------- opnemen ----------
@@ -484,14 +512,21 @@ ${m.transcript.trim()}
     not_granted: "Claude mag niet gebruikt worden vanaf deze pagina. Sta het toe via het Permissies-menu.",
     rate_limited: "Even te veel verzoeken tegelijk. Wacht een minuut en probeer het opnieuw.",
   };
-  async function generate() {
+  let overwriteArmed = false;
+  async function generate(opts = {}) {
+    if (editing) stopEdit();
     readForm();
+    if (current.handmatig && current.notulen) {
+      if (opts.auto) { say("De notulen zijn niet opnieuw uitgewerkt omdat je ze zelf hebt aangepast. Kies Notulen uitwerken om ze te vervangen.", ""); return; }
+      if (!overwriteArmed) { overwriteArmed = true; el.maak.textContent = "Ja, opnieuw uitwerken"; say("Je hebt deze notulen zelf aangepast. Opnieuw uitwerken vervangt je aanpassingen. Klik nogmaals om door te gaan.", "err"); setTimeout(disarm, 8000); return; }
+    }
+    disarm();
     if (!sample) { say("Notulen uitwerken kan alleen in de Claude-app of op claude.ai.", "err"); return; }
     const words = current.transcript.trim().split(/\s+/).filter(Boolean).length;
     if (words < 15) { say("Het transcript is nog te kort om notulen van te maken.", "err"); return; }
     persist(current);
     generating = true; genCtl = new AbortController();
-    el.maak.disabled = true; el.stopGen.hidden = false; el.download.hidden = el.downloadDocx.hidden = true;
+    el.maak.disabled = true; el.stopGen.hidden = false; el.bewerk.hidden = true; el.download.hidden = el.downloadDocx.hidden = true;
     say("Claude leest het transcript…");
     el.minutes.innerHTML = '<div class="empty">Notulen worden uitgewerkt…</div>';
     const target = current;
@@ -500,10 +535,10 @@ ${m.transcript.trim()}
         signal: genCtl.signal, modelTier: words > 4000 ? "complex" : "default", cache: false,
         onText: ({ text }) => { if (current === target) { say("Bezig met schrijven…"); el.minutes.innerHTML = md(text); } }
       });
-      target.notulen = text.trim();
+      target.notulen = text.trim(); target.origineel = target.notulen; target.handmatig = false;
       say(truncated ? "Klaar, maar de notulen zijn ingekort. Splits een heel lang transcript in delen." : "Notulen klaar en opgeslagen.", truncated ? "err" : "ok");
     } catch (e) {
-      if (e && e.text) target.notulen = e.text.trim();
+      if (e && e.text) { target.notulen = e.text.trim(); target.origineel = target.notulen; target.handmatig = false; }
       say(e && e.code === "cancelled" ? "Uitwerken gestopt." : (sampleErrors[e && e.code] || "Uitwerken lukte niet: " + (e && e.message || "onbekende fout")), e && e.code === "cancelled" ? "" : "err");
     } finally {
       generating = false; el.maak.disabled = false; el.stopGen.hidden = true;
@@ -511,11 +546,13 @@ ${m.transcript.trim()}
       if (current === target) renderMinutes(target.notulen);
     }
   }
-  el.maak.addEventListener("click", generate);
+  function disarm() { overwriteArmed = false; el.maak.textContent = "Notulen uitwerken"; }
+  el.maak.addEventListener("click", () => generate());
   el.stopGen.addEventListener("click", () => genCtl && genCtl.abort());
 
   // ---------- kopiëren / downloaden ----------
   el.kopieer.addEventListener("click", () => {
+    if (editing) syncEdit();
     const text = (current && current.notulen) || "";
     if (!text) { say("Er zijn nog geen notulen om te kopiëren.", "err"); return; }
     navigator.clipboard.writeText(text).then(() => say("Notulen gekopieerd.", "ok"), () => {
@@ -524,6 +561,7 @@ ${m.transcript.trim()}
     });
   });
   el.download.addEventListener("click", () => {
+    if (editing) syncEdit();
     if (!downloads || !current || !current.notulen) return;
     const name = ("notulen " + (current.datum || "") + " " + (current.titel || "")).trim().replace(/[^\p{L}\p{N} _-]+/gu, "").replace(/\s+/g, "-").toLowerCase().slice(0, 80) + ".md";
     downloads.save({ filename: name, data: current.notulen + "\n\n---\n\n## Transcript\n\n" + current.transcript.trim() + "\n" })
@@ -600,6 +638,7 @@ ${st("Transcript", "Transcript", '<w:spacing w:after="60"/>', '<w:sz w:val="20"/
   /*DOCX-END*/
   const fileBase = () => ("notulen " + (current.datum || "") + " " + (current.titel || "")).trim().replace(/[^\p{L}\p{N} _-]+/gu, "").replace(/\s+/g, "-").toLowerCase().slice(0, 80) || "notulen";
   el.downloadDocx.addEventListener("click", async () => {
+    if (editing) syncEdit();
     if (!downloads || !current || !current.notulen) return;
     el.downloadDocx.disabled = true; say("Word-bestand maken…");
     try {
@@ -612,6 +651,143 @@ ${st("Transcript", "Transcript", '<w:spacing w:after="60"/>', '<w:sz w:val="20"/
       if (e && (e.code === "cancelled" || e.code === "declined")) say("");
       else say("Word-bestand maken lukte niet: " + (e && e.message || "onbekende fout"), "err");
     } finally { el.downloadDocx.disabled = false; }
+  });
+
+
+  // ---------- notulen handmatig bewerken ----------
+  let editing = false;
+  function domToMd(root) {
+    const clean = (t) => t.replace(/[ \s]+/g, " ");
+    const inl = (node, inCell) => {
+      let out = "";
+      for (const n of node.childNodes) {
+        if (n.nodeType === 3) out += clean(n.textContent);
+        else if (n.nodeType === 1) {
+          const tag = n.tagName; const fw = n.style && n.style.fontWeight;
+          if (tag === "BR") out += " ";
+          else if (/^(UL|OL|TABLE)$/.test(tag)) continue;
+          else {
+            const inner = inl(n, inCell); const t = inner.trim();
+            if (!t) { out += inner; continue; }
+            const lead = inner.match(/^\s*/)[0], trail = inner.match(/\s*$/)[0];
+            if (tag === "STRONG" || tag === "B" || fw === "bold" || +fw >= 600) out += lead + "**" + t + "**" + trail;
+            else if (tag === "EM" || tag === "I") out += lead + "*" + t + "*" + trail;
+            else out += inner;
+          }
+        }
+      }
+      return inCell ? out.replace(/\|/g, "/") : out;
+    };
+    const blocks = [];
+    const list = (el, depth) => {
+      let n = 1;
+      for (const li of el.children) {
+        if (li.tagName !== "LI") continue;
+        const t = inl(li).trim();
+        if (t) blocks.push({ list: true, text: "  ".repeat(depth) + (el.tagName === "OL" ? (n++) + ". " : "- ") + t });
+        for (const sub of li.children) if (sub.tagName === "UL" || sub.tagName === "OL") list(sub, depth + 1);
+      }
+    };
+    const walk = (parent) => {
+      let loose = "";
+      const flushLoose = () => { if (loose.trim()) blocks.push({ text: loose.trim() }); loose = ""; };
+      for (const n of parent.childNodes) {
+        if (n.nodeType === 3) { loose += clean(n.textContent); continue; }
+        if (n.nodeType !== 1) continue;
+        const tag = n.tagName;
+        if (/^(B|STRONG|I|EM|SPAN|A|CODE|U|FONT)$/.test(tag)) { loose += inl({ childNodes: [n] }); continue; }
+        if (tag === "BR") { flushLoose(); continue; }
+        flushLoose();
+        if (/^H[1-6]$/.test(tag)) { const t = inl(n).trim(); if (t) blocks.push({ text: "#".repeat(Math.min(3, +tag[1])) + " " + t }); }
+        else if (tag === "UL" || tag === "OL") list(n, 0);
+        else if (tag === "TABLE") {
+          const rows = [...n.querySelectorAll("tr")].map(tr => [...tr.children].map(c => inl(c, true).trim()));
+          if (rows.length) {
+            const w = Math.max(...rows.map(r => r.length));
+            const line = (r) => "| " + Array.from({ length: w }, (_, k) => r[k] || "").join(" | ") + " |";
+            blocks.push({ text: [line(rows[0]), "|" + " --- |".repeat(w), ...rows.slice(1).filter(r => r.some(Boolean)).map(line)].join("\n") });
+          }
+        }
+        else if (n.querySelector("h1,h2,h3,h4,p,ul,ol,table,div")) walk(n);
+        else { const t = inl(n).trim(); if (t) blocks.push({ text: t }); }
+      }
+      flushLoose();
+    };
+    walk(root);
+    let out = "";
+    blocks.forEach((b, i) => { out += (i ? (b.list && blocks[i - 1].list ? "\n" : "\n\n") : "") + b.text; });
+    return out.trim();
+  }
+  let syncTimer = null;
+  function norm(text) { const d = document.createElement("div"); d.innerHTML = md(text || ""); return domToMd(d); }
+  function syncEdit() {
+    clearTimeout(syncTimer);
+    if (!editing || !current) return;
+    const md2 = domToMd(el.minutes);
+    if (md2 !== norm(current.notulen)) {
+      if (!current.origineel) current.origineel = current.notulen;
+      current.notulen = md2; current.handmatig = md2 !== norm(current.origineel);
+      if (current.voorbeeld) { readForm(); }
+      persist(current);
+    }
+  }
+  function startEdit() {
+    if (!current || !current.notulen || generating) return;
+    if (current.voorbeeld) readForm(); // voorbeeld wordt een eigen kopie
+    editing = true;
+    el.minutes.innerHTML = md(current.notulen);
+    el.minutes.contentEditable = "true"; el.minutes.spellcheck = true; el.minutes.lang = "nl";
+    el.toolbar.hidden = false; el.bewerk.hidden = true; el.bewerkKlaar.hidden = false;
+    try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch {}
+    el.minutes.focus();
+    say("Je kunt de notulen nu aanpassen. Wijzigingen worden vanzelf bewaard.");
+  }
+  function stopEdit() {
+    if (!editing) return;
+    syncEdit();
+    editing = false;
+    el.minutes.contentEditable = "false"; el.minutes.removeAttribute("contenteditable");
+    el.toolbar.hidden = true; el.bewerkKlaar.hidden = true;
+    renderMinutes(current.notulen);
+    say(current.handmatig ? "Aanpassingen bewaard. Kopiëren en downloaden gebruiken jouw versie." : "", current.handmatig ? "ok" : "");
+  }
+  el.bewerk.addEventListener("click", startEdit);
+  el.bewerkKlaar.addEventListener("click", stopEdit);
+  el.minutes.addEventListener("input", () => { if (editing) { clearTimeout(syncTimer); syncTimer = setTimeout(syncEdit, 600); } });
+  el.minutes.addEventListener("paste", (e) => {
+    if (!editing) return;
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData("text/plain");
+    document.execCommand("insertText", false, text);
+  });
+  el.toolbar.addEventListener("mousedown", (e) => { if (e.target.closest("button")) e.preventDefault(); });
+  el.toolbar.addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b || !editing) return;
+    const cmd = b.dataset.cmd;
+    if (cmd === "reset") {
+      if (!current.origineel || current.origineel === current.notulen) { say("Er zijn geen aanpassingen om terug te draaien."); return; }
+      if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "Zeker? Klik nogmaals"; setTimeout(() => { b.dataset.armed = ""; b.textContent = "Origineel herstellen"; }, 5000); return; }
+      b.dataset.armed = ""; b.textContent = "Origineel herstellen";
+      current.notulen = current.origineel; current.handmatig = false; persist(current);
+      el.minutes.innerHTML = md(current.notulen); say("De oorspronkelijke notulen zijn hersteld.", "ok"); return;
+    }
+    if (cmd === "addRow") {
+      const sel = getSelection(); const node = sel && sel.anchorNode;
+      const tr = node && (node.nodeType === 1 ? node : node.parentElement).closest("tr");
+      const table = tr ? tr.closest("table") : el.minutes.querySelector("table");
+      if (!table) { say("Zet je cursor in een tabel, bijvoorbeeld bij de actiepunten.", "err"); return; }
+      const ref = tr && tr.parentElement.tagName === "TBODY" ? tr : table.querySelector("tbody tr:last-child");
+      const cols = (ref || table.querySelector("tr")).children.length;
+      const row = document.createElement("tr");
+      for (let k = 0; k < cols; k++) { const td = document.createElement("td"); td.appendChild(document.createElement("br")); row.appendChild(td); }
+      const tbody = table.querySelector("tbody") || table;
+      if (ref && ref.parentElement === tbody) ref.after(row); else tbody.appendChild(row);
+      const r = document.createRange(); r.setStart(row.firstChild, 0); r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
+      syncEdit(); return;
+    }
+    if (/^(h2|h3|p)$/.test(cmd)) document.execCommand("formatBlock", false, cmd);
+    else document.execCommand(cmd, false, null);
+    syncEdit();
   });
 
   // ---------- bestanden uploaden ----------
@@ -738,7 +914,7 @@ ${st("Transcript", "Transcript", '<w:spacing w:after="60"/>', '<w:sz w:val="20"/
         const words = t.value.trim().split(/\s+/).length;
         upSay(`${pieces.length === 1 ? pieces[0].name + " is" : pieces.length + " bestanden zijn"} toegevoegd aan het transcript (${words} woorden).` + (fouten.length ? " Niet gelukt: " + fouten.join(" ") : ""), fouten.length ? "err" : "ok");
         if (new TextEncoder().encode(t.value).length > 230000) say("Dit transcript is erg lang. Claude kan ongeveer 35.000 woorden tegelijk verwerken; splits het anders in delen.", "err");
-        else if (el.auto.checked && words >= 15) { uploading = false; generate(); }
+        else if (el.auto.checked && words >= 15) { uploading = false; generate({ auto: true }); }
       } else {
         upSay(fouten.join(" "), fouten.length ? "err" : "");
       }
@@ -798,7 +974,7 @@ ${st("Transcript", "Transcript", '<w:spacing w:after="60"/>', '<w:sz w:val="20"/
           el.partial.textContent = "";
           readForm(); persist(current);
           if (reason && endReasons[reason]) say(endReasons[reason], reason === "time_limit" || reason === "hidden" ? "" : "err");
-          if ((reason === "stopped" || reason === "viewer_stopped") && el.auto.checked && current.transcript.trim().split(/\s+/).length >= 15) generate();
+          if ((reason === "stopped" || reason === "viewer_stopped") && el.auto.checked && current.transcript.trim().split(/\s+/).length >= 15) generate({ auto: true });
         }
       });
     } else {
