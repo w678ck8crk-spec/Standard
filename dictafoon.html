@@ -135,6 +135,13 @@ textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; li
 .item.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item small { color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Uploaden */
+.drop { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1.5px dashed var(--line); border-radius: 10px; padding: 12px; background: var(--bg); transition: border-color .15s, background .15s; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.drop-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 220px; }
+.drop-text strong { font-size: .9rem; }
+.drop-text small { color: var(--muted); font-size: .8rem; }
 .confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .88rem; }
 </style>
 
@@ -189,6 +196,15 @@ textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; li
           <label for="transcript">Transcript</label>
           <textarea id="transcript" placeholder="Hier verschijnt wat er gezegd wordt. Je kunt ook zelf typen of een bestaand transcript plakken."></textarea>
         </div>
+        <div class="drop" id="drop">
+          <input type="file" id="bestand" multiple accept=".txt,.md,.text,.vtt,.srt,.docx,.pdf,.csv,image/*,audio/*,video/*">
+          <button class="btn" id="kies" type="button">Bestand uploaden</button>
+          <div class="drop-text">
+            <strong>Of sleep een bestand hierheen</strong>
+            <small>Transcript als Word (.docx), PDF of tekst, ondertitels (.vtt, .srt) uit Teams, Zoom of Meet, of foto's van aantekeningen en whiteboards.</small>
+          </div>
+        </div>
+        <p class="msg" id="uploadMsg" role="status"></p>
         <p class="hint" id="dictHint">Tip: noem namen bij het spreken ("Anne pakt dat op voor vrijdag"), dan komen ze in de actiepunten.</p>
       </section>
     </div>
@@ -474,6 +490,147 @@ ${m.transcript.trim()}
     downloads.save({ filename: name, data: current.notulen + "\n\n---\n\n## Transcript\n\n" + current.transcript.trim() + "\n" })
       .then(() => say("Bestand opgeslagen.", "ok"), (e) => { if (e && e.code !== "cancelled" && e.code !== "declined") say("Downloaden lukte niet.", "err"); });
   });
+
+  // ---------- bestanden uploaden ----------
+  const up = { input: $("bestand"), kies: $("kies"), drop: $("drop"), msg: $("uploadMsg") };
+  const upSay = (t, kind) => { up.msg.textContent = t || ""; up.msg.className = "msg" + (kind ? " " + kind : ""); };
+  const scriptCache = {};
+  function loadScript(src) {
+    if (!scriptCache[src]) scriptCache[src] = new Promise((res, rej) => {
+      const s = document.createElement("script"); s.src = src; s.onload = res;
+      s.onerror = () => { delete scriptCache[src]; rej(new Error("Kon de lezer niet laden. Controleer je internetverbinding.")); };
+      document.head.appendChild(s);
+    });
+    return scriptCache[src];
+  }
+  const ext = (f) => (f.name.split(".").pop() || "").toLowerCase();
+
+  function fromSubtitles(raw) {
+    const out = []; let last = null;
+    const blocks = raw.replace(/\r/g, "").replace(/^\uFEFF/, "").split(/\n\s*\n/);
+    for (const b of blocks) {
+      const lines = b.split("\n").filter(l => l.trim() && !/-->/.test(l) && !/^\d+$/.test(l.trim()) && !/^(WEBVTT|NOTE|STYLE|REGION|Kind:|Language:)/.test(l.trim()));
+      if (!lines.length) continue;
+      let text = lines.join(" "), who = null, m;
+      if ((m = text.match(/<v(?:\.[^ >]+)?\s+([^>]+)>/))) who = m[1].trim();
+      text = text.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+      if (!who && (m = text.match(/^([A-ZÀ-Ý][\p{L} .'-]{1,40}):\s+(.*)$/u))) { who = m[1]; text = m[2]; }
+      if (!text) continue;
+      if (last && last.who === who) last.text += " " + text; else { last = { who, text }; out.push(last); }
+    }
+    return out.map(x => (x.who ? x.who + ": " : "") + x.text).join("\n");
+  }
+  async function fromDocx(file) {
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js");
+    const zip = await JSZip.loadAsync(file);
+    const entry = zip.file("word/document.xml");
+    if (!entry) throw new Error("Dit lijkt geen geldig Word-bestand.");
+    const xml = new DOMParser().parseFromString(await entry.async("string"), "application/xml");
+    const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+    return [...xml.getElementsByTagNameNS(W, "p")].map(p => {
+      let t = "";
+      for (const n of p.getElementsByTagNameNS(W, "*")) {
+        if (n.localName === "t") t += n.textContent;
+        else if (n.localName === "tab") t += " ";
+        else if (n.localName === "br") t += "\n";
+      }
+      return t;
+    }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+  async function fromPdf(file) {
+    const base = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+    await loadScript(base + "pdf.min.js");
+    await loadScript(base + "pdf.worker.min.js"); // draait in de pagina zelf
+    pdfjsLib.GlobalWorkerOptions.workerSrc = base + "pdf.worker.min.js";
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      upSay(`PDF lezen: pagina ${i} van ${pdf.numPages}…`);
+      const c = await (await pdf.getPage(i)).getTextContent();
+      let line = "", txt = "";
+      for (const it of c.items) { line += it.str; if (it.hasEOL) { txt += line + "\n"; line = ""; } else if (it.str && !it.str.endsWith(" ")) line += " "; }
+      pages.push((txt + line).replace(/[ \t]+/g, " ").trim());
+    }
+    const all = pages.join("\n\n").trim();
+    if (all.replace(/\s/g, "").length < 20) throw new Error("Deze PDF bevat geen leesbare tekst (waarschijnlijk een scan). Upload de pagina's als foto, dan leest Claude ze.");
+    return all;
+  }
+  async function fromImages(files) {
+    if (!sample) throw new Error("Foto's lezen kan alleen binnen Claude.");
+    const lim = await sample.limits().catch(() => null);
+    if (!lim || !lim.images) throw new Error("Foto's lezen is in deze weergave niet beschikbaar. Upload het transcript als tekst, Word of PDF.");
+    const ok = files.filter(f => f.size <= lim.images.maxInputBytes);
+    if (ok.length < files.length) upSay(`${files.length - ok.length} foto('s) zijn te groot en overgeslagen.`, "err");
+    const parts = [];
+    for (let i = 0; i < ok.length; i += lim.images.maxCount) {
+      const batch = ok.slice(i, i + lim.images.maxCount);
+      upSay(`Claude leest ${ok.length > 1 ? "foto's " + (i + 1) + "–" + (i + batch.length) + " van " + ok.length : "de foto"}…`);
+      const { text } = await sample("Op deze foto's staan aantekeningen, een whiteboard of pagina's van een vergadering. Schrijf alle leesbare tekst letterlijk over, in de volgorde van de foto's en van boven naar beneden. Behoud opsommingen en namen. Markeer onleesbare stukken als [onleesbaar]. Antwoord alleen met de overgeschreven tekst.", { images: batch, modelTier: "default" });
+      parts.push(text.trim());
+    }
+    return parts.join("\n\n");
+  }
+
+  let uploading = false;
+  async function handleFiles(list) {
+    const files = [...list]; if (!files.length) return;
+    if (dictState !== "idle" || generating || uploading) { upSay("Wacht tot de opname of het uitwerken klaar is.", "err"); return; }
+    const audio = files.filter(f => /^(audio|video)\//.test(f.type) || /^(mp3|m4a|wav|ogg|opus|aac|flac|wma|mp4|mov|webm|amr|3gp)$/.test(ext(f)));
+    const images = files.filter(f => f.type.startsWith("image/") && !audio.includes(f));
+    const docs = files.filter(f => !audio.includes(f) && !images.includes(f));
+    if (current.voorbeeld) load(blank());
+    uploading = true; up.kies.disabled = true; el.maak.disabled = true;
+    const pieces = [], fouten = [];
+    try {
+      for (const f of docs) {
+        upSay(`${f.name} lezen…`);
+        try {
+          const e = ext(f); let text;
+          if (e === "docx") text = await fromDocx(f);
+          else if (e === "pdf" || f.type === "application/pdf") text = await fromPdf(f);
+          else if (e === "doc") throw new Error("Oude Word-bestanden (.doc) worden niet ondersteund. Sla het op als .docx.");
+          else if (e === "vtt" || e === "srt") text = fromSubtitles(await f.text());
+          else if (/^(txt|md|text|csv|log)$/.test(e) || f.type.startsWith("text/")) text = await f.text();
+          else throw new Error("Dit bestandstype wordt niet ondersteund.");
+          text = text.replace(/^\uFEFF/, "").trim();
+          if (/^WEBVTT/.test(text) || /^\d+\s*\n\d\d:\d\d/.test(text)) text = fromSubtitles(text);
+          if (!text) throw new Error("Het bestand is leeg.");
+          pieces.push({ name: f.name, text });
+        } catch (err) { fouten.push(f.name + ": " + (err && err.message || "kon niet gelezen worden")); }
+      }
+      if (images.length) {
+        try { pieces.push({ name: images.length === 1 ? images[0].name : images.length + " foto's", text: await fromImages(images) }); }
+        catch (err) { fouten.push((err && err.code === "not_granted") ? "Foto's: Claude mag niet gebruikt worden vanaf deze pagina." : "Foto's: " + (err && err.message || "konden niet gelezen worden")); }
+      }
+      if (audio.length) fouten.push(`${audio.map(f => f.name).join(", ")}: geluids- en video-opnames kunnen hier nog niet worden omgezet. Exporteer het transcript uit Teams, Zoom of Meet (.vtt of .docx), of gebruik de transcriptiefunctie van je telefoon of dictafoon en upload die tekst.`);
+
+      if (pieces.length) {
+        const t = el.transcript; let add = "";
+        const multi = pieces.length > 1 || t.value.trim();
+        for (const p of pieces) add += (multi ? `\n\n[Uit bestand: ${p.name}]\n` : "") + p.text;
+        t.value = (t.value.trim() + add).trim();
+        if (!el.titel.value.trim()) el.titel.value = pieces[0].name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+        readForm(); persist(current);
+        const words = t.value.trim().split(/\s+/).length;
+        upSay(`${pieces.length === 1 ? pieces[0].name + " is" : pieces.length + " bestanden zijn"} toegevoegd aan het transcript (${words} woorden).` + (fouten.length ? " Niet gelukt: " + fouten.join(" ") : ""), fouten.length ? "err" : "ok");
+        if (new TextEncoder().encode(t.value).length > 230000) say("Dit transcript is erg lang. Claude kan ongeveer 35.000 woorden tegelijk verwerken; splits het anders in delen.", "err");
+        else if (el.auto.checked && words >= 15) { uploading = false; generate(); }
+      } else {
+        upSay(fouten.join(" "), "err");
+      }
+    } finally {
+      uploading = false; up.kies.disabled = false; if (!generating) el.maak.disabled = !sample;
+      up.input.value = "";
+    }
+  }
+  up.kies.addEventListener("click", () => up.input.click());
+  up.input.addEventListener("change", () => handleFiles(up.input.files));
+  for (const ev of ["dragenter", "dragover"]) up.drop.addEventListener(ev, (e) => { e.preventDefault(); up.drop.classList.add("over"); });
+  for (const ev of ["dragleave", "drop"]) up.drop.addEventListener(ev, (e) => { e.preventDefault(); up.drop.classList.remove("over"); });
+  up.drop.addEventListener("drop", (e) => handleFiles(e.dataTransfer.files));
+  // ook neerzetten op het transcriptveld
+  el.transcript.addEventListener("dragover", (e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); });
+  el.transcript.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); handleFiles(e.dataTransfer.files); } });
 
   // ---------- formulier ----------
   for (const f of [el.titel, el.datum, el.locatie, el.deelnemers, el.transcript]) {
