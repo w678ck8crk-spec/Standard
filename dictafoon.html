@@ -1,0 +1,552 @@
+<title>Dictafoon Notulist</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: links het apparaat (opnemen + transcript), rechts de uitgewerkte notulen; daaronder het archief. Op telefoon onder elkaar. */
+:root {
+  --bg: #eef0f2;
+  --surface: #ffffff;
+  --ink: #1b2026;
+  --muted: #5e6873;
+  --line: #d9dde2;
+  --device: #22272e;
+  --device-ink: #e9ecef;
+  --device-muted: #9aa4ae;
+  --rec: #d6362f;
+  --rec-soft: #f9e1df;
+  --accent: #1f6f78;
+  --accent-soft: #dcecee;
+  --ok: #2f7d4f;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #13161a; --surface: #1c2026; --ink: #e8ebee; --muted: #9aa4ae; --line: #2e343c;
+    --device: #0c0e11; --device-ink: #e9ecef; --device-muted: #8a949e;
+    --rec: #ff5a4f; --rec-soft: #3a1d1b; --accent: #5fb8c1; --accent-soft: #1b3236; --ok: #6cc28f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #13161a; --surface: #1c2026; --ink: #e8ebee; --muted: #9aa4ae; --line: #2e343c;
+  --device: #0c0e11; --device-ink: #e9ecef; --device-muted: #8a949e;
+  --rec: #ff5a4f; --rec-soft: #3a1d1b; --accent: #5fb8c1; --accent-soft: #1b3236; --ok: #6cc28f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.75rem; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.tagline { color: var(--muted); margin: 2px 0 0; }
+.btn {
+  font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px; padding: 9px 14px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn:hover { border-color: var(--muted); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn.ghost { background: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Het apparaat */
+.device { background: var(--device); color: var(--device-ink); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.display { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #00000040; border-radius: 10px; padding: 12px 14px; }
+.counter { font-family: var(--font-mono); font-size: 2.2rem; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.status { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: .78rem; text-transform: uppercase; letter-spacing: .12em; color: var(--device-muted); }
+.lamp { width: 10px; height: 10px; border-radius: 50%; background: #4a525b; }
+.device.live .lamp { background: var(--rec); box-shadow: 0 0 10px var(--rec); animation: blink 1.2s infinite; }
+.device.live .status { color: var(--device-ink); }
+@keyframes blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .device.live .lamp { animation: none; } }
+.controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.recbtn {
+  width: 68px; height: 68px; border-radius: 50%; border: 4px solid #3a414a; background: #2c323a; cursor: pointer;
+  display: grid; place-items: center; flex: none;
+}
+.recbtn span { width: 26px; height: 26px; border-radius: 50%; background: var(--rec); transition: border-radius .15s, width .15s, height .15s; }
+.device.live .recbtn span { border-radius: 5px; width: 22px; height: 22px; }
+.recbtn:disabled { opacity: .45; cursor: not-allowed; }
+.ctrl-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 160px; }
+.ctrl-text strong { font-family: var(--font-display); font-size: 1.05rem; }
+.ctrl-text small { color: var(--device-muted); }
+.device select, .device label { font: inherit; font-size: .85rem; color: var(--device-muted); }
+.device select { background: #2c323a; color: var(--device-ink); border: 1px solid #3a414a; border-radius: 6px; padding: 5px 8px; }
+.device-opts { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.device-opts label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.partial { min-height: 1.5em; font-style: italic; color: var(--device-muted); font-size: .92rem; }
+
+/* Kaarten */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel h2 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; margin: 0; }
+.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.eyebrow { font-family: var(--font-mono); font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fields .full { grid-column: 1 / -1; }
+@media (max-width: 480px) { .fields { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-size: .78rem; font-weight: 600; color: var(--muted); }
+input[type=text], input[type=date], textarea {
+  font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%;
+}
+textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; line-height: 1.55; }
+.hint { font-size: .82rem; color: var(--muted); margin: 0; }
+.left { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+/* Notulen */
+.notes-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.minutes { min-height: 320px; border-top: 1px solid var(--line); padding-top: 4px; overflow-wrap: anywhere; }
+.minutes h1, .minutes h2, .minutes h3 { font-family: var(--font-display); text-wrap: balance; }
+.minutes h1 { font-size: 1.35rem; margin: 14px 0 6px; }
+.minutes h2 { font-size: 1.05rem; margin: 20px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.minutes h3 { font-size: .95rem; margin: 14px 0 4px; }
+.minutes p { margin: 6px 0; max-width: 68ch; }
+.minutes ul, .minutes ol { margin: 6px 0; padding-left: 22px; }
+.minutes li { margin: 3px 0; }
+.minutes li.task { list-style: none; margin-left: -20px; display: flex; gap: 8px; }
+.minutes li.task::before { content: ""; flex: none; width: 13px; height: 13px; margin-top: 5px; border: 1.5px solid var(--accent); border-radius: 3px; }
+.minutes table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+.minutes .tbl { overflow-x: auto; margin: 8px 0; }
+.minutes th, .minutes td { text-align: left; border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top; }
+.minutes th { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.empty { color: var(--muted); padding: 30px 4px; text-align: center; }
+.badge { font-family: var(--font-mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+.badge.rec { background: var(--rec-soft); color: var(--rec); }
+.msg { font-size: .86rem; color: var(--muted); min-height: 1.3em; margin: 0; }
+.msg.err { color: var(--rec); }
+.msg.ok { color: var(--ok); }
+
+/* Archief */
+.archive-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.item { text-align: left; font: inherit; color: inherit; cursor: pointer; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.item:hover { border-color: var(--muted); }
+.item.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .88rem; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Dictafoon Notulist</h1>
+      <p class="tagline">Neem je vergadering op. Claude werkt de notulen uit met besluiten en actiepunten.</p>
+    </div>
+    <button class="btn" id="nieuw" type="button">+ Nieuwe vergadering</button>
+  </header>
+
+  <div class="grid">
+    <div class="left">
+      <section class="device" id="device" aria-label="Opnemen">
+        <div class="display">
+          <div class="counter" id="counter" aria-live="off">00:00:00</div>
+          <div class="status"><span class="lamp"></span><span id="statusText">Gereed</span></div>
+        </div>
+        <div class="controls">
+          <button class="recbtn" id="rec" type="button" aria-label="Opname starten"><span></span></button>
+          <div class="ctrl-text">
+            <strong id="recLabel">Druk om op te nemen</strong>
+            <small id="recSub">Spraak wordt live omgezet naar tekst.</small>
+          </div>
+        </div>
+        <div class="device-opts">
+          <label for="taal">Taal
+            <select id="taal">
+              <option value="nl">Nederlands</option>
+              <option value="en">Engels</option>
+              <option value="">Taal van mijn browser</option>
+            </select>
+          </label>
+          <label for="auto"><input type="checkbox" id="auto" checked> Notulen uitwerken na stoppen</label>
+        </div>
+        <div class="partial" id="partial" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" aria-label="Vergadering en transcript">
+        <div class="panel-head">
+          <h2>Vergadering</h2>
+          <span class="badge" id="sampleBadge" hidden>Voorbeeld</span>
+        </div>
+        <div class="fields">
+          <div class="field full"><label for="titel">Onderwerp</label><input type="text" id="titel" placeholder="Bijv. Teamoverleg week 48"></div>
+          <div class="field"><label for="datum">Datum</label><input type="date" id="datum"></div>
+          <div class="field"><label for="locatie">Locatie</label><input type="text" id="locatie" placeholder="Bijv. kantoor of Teams"></div>
+          <div class="field full"><label for="deelnemers">Aanwezigen</label><input type="text" id="deelnemers" placeholder="Namen, gescheiden door komma's"></div>
+        </div>
+        <div class="field">
+          <label for="transcript">Transcript</label>
+          <textarea id="transcript" placeholder="Hier verschijnt wat er gezegd wordt. Je kunt ook zelf typen of een bestaand transcript plakken."></textarea>
+        </div>
+        <p class="hint" id="dictHint">Tip: noem namen bij het spreken ("Anne pakt dat op voor vrijdag"), dan komen ze in de actiepunten.</p>
+      </section>
+    </div>
+
+    <section class="panel" aria-label="Notulen">
+      <div class="panel-head">
+        <div>
+          <div class="eyebrow">Uitgewerkt</div>
+          <h2>Notulen</h2>
+        </div>
+        <div class="notes-actions">
+          <button class="btn primary" id="maak" type="button">Notulen uitwerken</button>
+          <button class="btn" id="stopGen" type="button" hidden>Stop</button>
+          <button class="btn ghost" id="kopieer" type="button">Kopiëren</button>
+          <button class="btn ghost" id="download" type="button" hidden>Download .md</button>
+        </div>
+      </div>
+      <p class="msg" id="msg" role="status"></p>
+      <div class="minutes" id="minutes"><div class="empty">Nog geen notulen. Neem een vergadering op of plak een transcript en kies <b>Notulen uitwerken</b>.</div></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-label="Archief">
+    <div class="panel-head">
+      <h2>Archief</h2>
+      <span class="hint" id="opslagHint">Opgeslagen vergaderingen zijn alleen voor jou zichtbaar.</span>
+    </div>
+    <div class="archive-list" id="archive"></div>
+    <div class="confirm" id="delRow">
+      <button class="btn ghost" id="verwijder" type="button">Deze vergadering verwijderen</button>
+      <span id="delConfirm" hidden>Zeker weten? <button class="btn" id="delJa" type="button">Ja, verwijderen</button> <button class="btn ghost" id="delNee" type="button">Annuleren</button></span>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    device: $("device"), counter: $("counter"), statusText: $("statusText"), rec: $("rec"), recLabel: $("recLabel"), recSub: $("recSub"),
+    taal: $("taal"), auto: $("auto"), partial: $("partial"), titel: $("titel"), datum: $("datum"), locatie: $("locatie"),
+    deelnemers: $("deelnemers"), transcript: $("transcript"), maak: $("maak"), stopGen: $("stopGen"), kopieer: $("kopieer"),
+    download: $("download"), msg: $("msg"), minutes: $("minutes"), archive: $("archive"), nieuw: $("nieuw"),
+    sampleBadge: $("sampleBadge"), verwijder: $("verwijder"), delConfirm: $("delConfirm"), delJa: $("delJa"), delNee: $("delNee"),
+    opslagHint: $("opslagHint"), dictHint: $("dictHint")
+  };
+
+  const VOORBEELD = {
+    id: "voorbeeld", voorbeeld: true,
+    titel: "Voorbeeld: Overleg verbouwing kantine", datum: "2026-11-24", locatie: "Vergaderzaal 2",
+    deelnemers: "Anne de Vries, Mark Jansen, Sanne Bakker", duur: 1120,
+    transcript: "Goedemorgen allemaal, Anne hier, ik zit de vergadering voor. Eerste punt is de planning van de verbouwing van de kantine. Mark, hoe staat het met de offertes? Ja, we hebben drie offertes binnen. De goedkoopste is van Bouwbedrijf Kok, 38.000 euro, maar die kunnen pas in maart beginnen. De tweede is 42.000 en die kan in januari starten. Sanne: ik vind januari belangrijker, want in maart hebben we de open dag. Anne: dan stel ik voor dat we voor de offerte van 42.000 gaan, iedereen akkoord? Ja, akkoord. Mark, kun jij voor vrijdag de opdracht bevestigen? Prima, doe ik. Tweede punt, waar gaan we lunchen tijdens de verbouwing. Sanne zoekt uit of we de zaal van het buurtcentrum kunnen huren, dat hoor ik graag voor 5 december. Nog een open vraag: moeten we de leveranciers van de koffieautomaat inlichten? Dat weten we nog niet. Volgende overleg is 8 december.",
+    notulen: "# Overleg verbouwing kantine\n**Datum:** 24 november 2026 · **Locatie:** Vergaderzaal 2\n**Aanwezig:** Anne de Vries (voorzitter), Mark Jansen, Sanne Bakker\n\n## Samenvatting\nEr zijn drie offertes voor de verbouwing van de kantine. Het team kiest voor de offerte van € 42.000 zodat de verbouwing in januari start en klaar is voor de open dag in maart.\n\n## Besproken punten\n### 1. Planning verbouwing kantine\n- Drie offertes ontvangen; de goedkoopste (Bouwbedrijf Kok, € 38.000) kan pas in maart starten.\n- De tweede offerte (€ 42.000) kan in januari starten.\n- Sanne wijst op de open dag in maart; starten in januari heeft daarom voorrang.\n\n### 2. Lunchen tijdens de verbouwing\n- Mogelijk uitwijken naar de zaal van het buurtcentrum.\n\n## Besluiten\n- Het team kiest de offerte van € 42.000 met start in januari.\n\n## Actiepunten\n| Wie | Wat | Wanneer |\n|---|---|---|\n| Mark | Opdracht aan aannemer bevestigen | vrijdag 28 november |\n| Sanne | Uitzoeken of de zaal van het buurtcentrum te huur is | 5 december |\n\n## Open vragen\n- Moeten de leveranciers van de koffieautomaat worden ingelicht?\n\n## Volgende overleg\n8 december",
+    bijgewerkt: 0
+  };
+
+  // ---------- staat ----------
+  let meetings = [];            // [{id, titel, ...}]
+  let current = null;           // huidige vergadering (object)
+  let dict = null, sample = null, downloads = null, store = null;
+  let seconds = 0, tick = null, dictState = "idle";
+  let genCtl = null, generating = false;
+
+  const uid = () => "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const today = () => new Date().toISOString().slice(0, 10);
+  const fmtTime = (s) => [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(n => String(n).padStart(2, "0")).join(":");
+  const fmtDate = (d) => { try { return new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" }); } catch { return d || ""; } };
+  const say = (t, kind) => { el.msg.textContent = t || ""; el.msg.className = "msg" + (kind ? " " + kind : ""); };
+
+  function blank() {
+    return { id: uid(), titel: "", datum: today(), locatie: "", deelnemers: "", transcript: "", notulen: "", duur: 0, bijgewerkt: Date.now() };
+  }
+
+  // ---------- opslag: privé db, anders browser ----------
+  const local = {
+    load() { try { return JSON.parse(localStorage.getItem("notulist.v1") || "[]"); } catch { return []; } },
+    save(list) { try { localStorage.setItem("notulist.v1", JSON.stringify(list)); } catch {} }
+  };
+  const pending = new Map(); let writing = false;
+  function persist(m) {
+    if (!m || m.voorbeeld) return;
+    m.bijgewerkt = Date.now();
+    if (!meetings.find(x => x.id === m.id)) meetings.unshift(m);
+    renderArchive();
+    if (!store) { local.save(meetings); return; }
+    pending.set(m.id, { ...m }); flush();
+  }
+  async function flush() {
+    if (writing || !pending.size) return;
+    writing = true;
+    const [id, data] = pending.entries().next().value; pending.delete(id);
+    try { await store.doc(id).set(data); } catch (e) { say("Opslaan lukte niet: " + (e && e.message || "onbekende fout"), "err"); }
+    writing = false; flush();
+  }
+  let saveTimer = null;
+  function persistSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(() => persist(current), 1500); }
+
+  // ---------- weergave ----------
+  function load(m) {
+    current = m;
+    el.titel.value = m.titel || ""; el.datum.value = m.datum || ""; el.locatie.value = m.locatie || "";
+    el.deelnemers.value = m.deelnemers || ""; el.transcript.value = m.transcript || "";
+    seconds = m.duur || 0; el.counter.textContent = fmtTime(seconds);
+    el.sampleBadge.hidden = !m.voorbeeld;
+    renderMinutes(m.notulen || "");
+    el.delConfirm.hidden = true;
+    el.verwijder.hidden = !!m.voorbeeld || !meetings.find(x => x.id === m.id);
+    say("");
+    renderArchive();
+  }
+  function readForm() {
+    if (!current) return;
+    if (current.voorbeeld) { // bewerken van het voorbeeld maakt er een eigen vergadering van
+      const copy = { ...current, id: uid(), voorbeeld: false, titel: current.titel.replace(/^Voorbeeld:\s*/, "") };
+      current = copy; el.sampleBadge.hidden = true;
+    }
+    current.titel = el.titel.value; current.datum = el.datum.value; current.locatie = el.locatie.value;
+    current.deelnemers = el.deelnemers.value; current.transcript = el.transcript.value; current.duur = seconds;
+  }
+  function renderArchive() {
+    const list = meetings.length ? meetings : [VOORBEELD];
+    el.archive.replaceChildren(...list.map(m => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "item" + (current && current.id === m.id ? " active" : "");
+      const s = document.createElement("strong"); s.textContent = m.titel || "Naamloze vergadering";
+      const meta = document.createElement("small");
+      const words = (m.transcript || "").trim().split(/\s+/).filter(Boolean).length;
+      meta.textContent = [fmtDate(m.datum), m.duur ? fmtTime(m.duur) : "", words + " woorden", m.notulen ? "notulen klaar" : "nog geen notulen"].filter(Boolean).join(" · ");
+      b.append(s, meta);
+      if (m.voorbeeld) { const bd = document.createElement("span"); bd.className = "badge"; bd.textContent = "Voorbeeld"; bd.style.alignSelf = "flex-start"; b.append(bd); }
+      b.onclick = () => { if (dictState !== "idle" || generating) { say("Stop eerst de opname of het uitwerken.", "err"); return; } load(m); };
+      return b;
+    }));
+    el.verwijder.hidden = !current || current.voorbeeld || !meetings.find(x => x.id === current.id);
+  }
+
+  // ---------- markdown (veilig: eerst escapen) ----------
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*(?!\s)(.+?)\*/g, "$1<em>$2</em>").replace(/`(.+?)`/g, "<code>$1</code>");
+  function md(src) {
+    const lines = src.replace(/\r/g, "").split("\n"); let html = "", list = null, i = 0;
+    const close = () => { if (list) { html += `</${list}>`; list = null; } };
+    while (i < lines.length) {
+      const l = lines[i];
+      if (/^\s*\|.*\|\s*$/.test(l) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+        close();
+        const cells = (r) => r.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+        let t = '<div class="tbl"><table><thead><tr>' + cells(l).map(c => `<th>${inline(c)}</th>`).join("") + "</tr></thead><tbody>";
+        i += 2;
+        while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) { t += "<tr>" + cells(lines[i]).map(c => `<td>${inline(c)}</td>`).join("") + "</tr>"; i++; }
+        html += t + "</tbody></table></div>"; continue;
+      }
+      let m;
+      if ((m = l.match(/^(#{1,3})\s+(.*)/))) { close(); html += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`; }
+      else if ((m = l.match(/^\s*[-*]\s+\[[ xX]\]\s+(.*)/))) { if (list !== "ul") { close(); html += "<ul>"; list = "ul"; } html += `<li class="task">${inline(m[1])}</li>`; }
+      else if ((m = l.match(/^\s*[-*•]\s+(.*)/))) { if (list !== "ul") { close(); html += "<ul>"; list = "ul"; } html += `<li>${inline(m[1])}</li>`; }
+      else if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== "ol") { close(); html += "<ol>"; list = "ol"; } html += `<li>${inline(m[1])}</li>`; }
+      else if (!l.trim()) { close(); }
+      else { close(); html += `<p>${inline(l)}</p>`; }
+      i++;
+    }
+    close(); return html;
+  }
+  function renderMinutes(text) {
+    if (!text) {
+      el.minutes.innerHTML = '<div class="empty">Nog geen notulen. Neem een vergadering op of plak een transcript en kies <b>Notulen uitwerken</b>.</div>';
+      el.download.hidden = true; return;
+    }
+    el.minutes.innerHTML = md(text);
+    el.download.hidden = !downloads || generating;
+  }
+
+  // ---------- opnemen ----------
+  function setDictUI(state) {
+    dictState = state;
+    const live = state === "listening";
+    el.device.classList.toggle("live", live || state === "finishing");
+    el.statusText.textContent = { idle: "Gereed", starting: "Starten…", listening: "Opname", finishing: "Afronden…" }[state] || state;
+    el.recLabel.textContent = state === "idle" ? "Druk om op te nemen" : state === "starting" ? "Microfoon openen…" : state === "finishing" ? "Laatste woorden verwerken…" : "Bezig met opnemen";
+    el.rec.setAttribute("aria-label", state === "idle" ? "Opname starten" : "Opname stoppen");
+    el.recSub.textContent = state === "listening" ? "Druk nogmaals om te stoppen." : "Spraak wordt live omgezet naar tekst.";
+    clearInterval(tick);
+    if (live) tick = setInterval(() => { seconds++; el.counter.textContent = fmtTime(seconds); }, 1000);
+  }
+  const endReasons = {
+    not_granted: "Microfoon is niet toegestaan. Zet dicteren aan via het Permissies-menu van deze pagina, of typ het transcript.",
+    dismissed: "De vraag om de microfoon is gesloten. Druk nogmaals op opnemen om het opnieuw te proberen.",
+    unavailable: "Dicteren is niet beschikbaar in deze taal of voor dit account. Kies een andere taal of typ het transcript.",
+    rate_limited: "De microfoon is even bezet. Probeer het over een paar seconden opnieuw.",
+    upstream_error: "De spraakherkenning gaf een fout. Probeer het opnieuw.",
+    time_limit: "Een opname duurt maximaal 60 minuten. Druk op opnemen om verder te gaan; de tekst loopt door.",
+    hidden: "De opname is gestopt omdat de pagina niet meer zichtbaar was. Druk op opnemen om verder te gaan."
+  };
+  function startDict() {
+    if (!current || current.voorbeeld) { const m = blank(); load(m); }
+    const opts = el.taal.value ? { language: el.taal.value } : undefined;
+    const p = dict.start(opts); // direct vanuit de klik
+    say("");
+    p.catch(e => { if (e && e.code !== "stopped") say(endReasons[e.code] || ("Opnemen lukte niet: " + (e && e.message || "")), "err"); });
+  }
+  el.rec.addEventListener("click", () => {
+    if (!dict) return;
+    if (dictState === "idle") startDict(); else dict.stop();
+  });
+
+  // ---------- notulen maken ----------
+  function prompt(m) {
+    return `Je bent een ervaren notulist. Werk het onderstaande transcript van een vergadering uit tot nette, zakelijke notulen in het Nederlands (of in de taal van het transcript als dat duidelijk geen Nederlands is).
+
+Gegevens:
+- Onderwerp: ${m.titel || "(niet opgegeven, leid af uit het transcript)"}
+- Datum: ${m.datum ? fmtDate(m.datum) : "(onbekend)"}
+- Locatie: ${m.locatie || "(niet opgegeven)"}
+- Aanwezigen: ${m.deelnemers || "(niet opgegeven, leid af uit het transcript als dat kan)"}
+- Opnameduur: ${m.duur ? fmtTime(m.duur) : "(onbekend)"}
+
+Regels:
+- Schrijf in Markdown met precies deze opbouw:
+  # <onderwerp>
+  **Datum:** … · **Locatie:** …
+  **Aanwezig:** …
+  ## Samenvatting (2-4 zinnen)
+  ## Besproken punten (per agendapunt een ### kop met genummerde titel en bullets)
+  ## Besluiten (bullets; schrijf "Geen besluiten genomen." als er geen zijn)
+  ## Actiepunten (tabel met kolommen Wie | Wat | Wanneer; gebruik "–" als iets onbekend is)
+  ## Open vragen (alleen als die er zijn)
+  ## Volgende overleg (alleen als dit genoemd is)
+- Verzin niets. Zet alleen in de notulen wat in het transcript staat. Laat stopwoorden, herhalingen en small talk weg.
+- Het transcript komt uit spraakherkenning en kan fouten bevatten: herstel duidelijke verspreking of herkenningsfouten stilzwijgend, maar gok niet bij twijfel.
+- Antwoord alleen met de notulen, zonder inleiding of afsluiting.
+
+Transcript:
+"""
+${m.transcript.trim()}
+"""`;
+  }
+  const sampleErrors = {
+    not_granted: "Claude mag niet gebruikt worden vanaf deze pagina. Sta het toe via het Permissies-menu.",
+    rate_limited: "Even te veel verzoeken tegelijk. Wacht een minuut en probeer het opnieuw.",
+  };
+  async function generate() {
+    readForm();
+    if (!sample) { say("Notulen uitwerken kan alleen in de Claude-app of op claude.ai.", "err"); return; }
+    const words = current.transcript.trim().split(/\s+/).filter(Boolean).length;
+    if (words < 15) { say("Het transcript is nog te kort om notulen van te maken.", "err"); return; }
+    persist(current);
+    generating = true; genCtl = new AbortController();
+    el.maak.disabled = true; el.stopGen.hidden = false; el.download.hidden = true;
+    say("Claude leest het transcript…");
+    el.minutes.innerHTML = '<div class="empty">Notulen worden uitgewerkt…</div>';
+    const target = current;
+    try {
+      const { text, truncated } = await sample(prompt(target), {
+        signal: genCtl.signal, modelTier: words > 4000 ? "complex" : "default", cache: false,
+        onText: ({ text }) => { if (current === target) { say("Bezig met schrijven…"); el.minutes.innerHTML = md(text); } }
+      });
+      target.notulen = text.trim();
+      say(truncated ? "Klaar, maar de notulen zijn ingekort. Splits een heel lang transcript in delen." : "Notulen klaar en opgeslagen.", truncated ? "err" : "ok");
+    } catch (e) {
+      if (e && e.text) target.notulen = e.text.trim();
+      say(e && e.code === "cancelled" ? "Uitwerken gestopt." : (sampleErrors[e && e.code] || "Uitwerken lukte niet: " + (e && e.message || "onbekende fout")), e && e.code === "cancelled" ? "" : "err");
+    } finally {
+      generating = false; el.maak.disabled = false; el.stopGen.hidden = true;
+      persist(target);
+      if (current === target) renderMinutes(target.notulen);
+    }
+  }
+  el.maak.addEventListener("click", generate);
+  el.stopGen.addEventListener("click", () => genCtl && genCtl.abort());
+
+  // ---------- kopiëren / downloaden ----------
+  el.kopieer.addEventListener("click", () => {
+    const text = (current && current.notulen) || "";
+    if (!text) { say("Er zijn nog geen notulen om te kopiëren.", "err"); return; }
+    navigator.clipboard.writeText(text).then(() => say("Notulen gekopieerd.", "ok"), () => {
+      const r = document.createRange(); r.selectNodeContents(el.minutes); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      say("Kopiëren werd geblokkeerd. De tekst is geselecteerd; kopieer met Ctrl/Cmd+C.");
+    });
+  });
+  el.download.addEventListener("click", () => {
+    if (!downloads || !current || !current.notulen) return;
+    const name = ("notulen " + (current.datum || "") + " " + (current.titel || "")).trim().replace(/[^\p{L}\p{N} _-]+/gu, "").replace(/\s+/g, "-").toLowerCase().slice(0, 80) + ".md";
+    downloads.save({ filename: name, data: current.notulen + "\n\n---\n\n## Transcript\n\n" + current.transcript.trim() + "\n" })
+      .then(() => say("Bestand opgeslagen.", "ok"), (e) => { if (e && e.code !== "cancelled" && e.code !== "declined") say("Downloaden lukte niet.", "err"); });
+  });
+
+  // ---------- formulier ----------
+  for (const f of [el.titel, el.datum, el.locatie, el.deelnemers, el.transcript]) {
+    f.addEventListener("input", () => { readForm(); persistSoon(); });
+  }
+  el.nieuw.addEventListener("click", () => {
+    if (dictState !== "idle" || generating) { say("Stop eerst de opname of het uitwerken.", "err"); return; }
+    load(blank());
+  });
+  el.verwijder.addEventListener("click", () => { el.delConfirm.hidden = false; });
+  el.delNee.addEventListener("click", () => { el.delConfirm.hidden = true; });
+  el.delJa.addEventListener("click", async () => {
+    const id = current.id; meetings = meetings.filter(m => m.id !== id); pending.delete(id);
+    if (store) { try { await store.doc(id).delete(); } catch {} } else local.save(meetings);
+    load(meetings[0] || VOORBEELD); say("Vergadering verwijderd.", "ok");
+  });
+
+  // ---------- start ----------
+  meetings = local.load();
+  load(meetings[0] || VOORBEELD);
+  el.rec.disabled = true;
+  el.recSub.textContent = "Microfoon wordt gecontroleerd…";
+
+  (async () => {
+    if (!window.claude || !window.claude.use) { el.recSub.textContent = "Opnemen werkt in Chrome of Edge op claude.ai. Je kunt het transcript ook typen of plakken."; return; }
+    const [d, s, dl, db, user] = await Promise.all(["dictation", "sample", "downloads", "db", "user"].map(n => claude.use(n).catch(() => null)));
+    dict = d; sample = s; downloads = dl;
+    if (dict) {
+      el.rec.disabled = false; setDictUI("idle");
+      dict.onPartial(({ text }) => { el.partial.textContent = text; });
+      dict.onFinal(({ text }) => {
+        const t = el.transcript; let add = text;
+        if (!t.value.trim()) add = add.replace(/^\s+/, "");
+        t.value += add; t.scrollTop = t.scrollHeight;
+        readForm(); persistSoon();
+      });
+      dict.onState(({ state, reason }) => {
+        setDictUI(state);
+        if (state === "idle") {
+          el.partial.textContent = "";
+          readForm(); persist(current);
+          if (reason && endReasons[reason]) say(endReasons[reason], reason === "time_limit" || reason === "hidden" ? "" : "err");
+          if ((reason === "stopped" || reason === "viewer_stopped") && el.auto.checked && current.transcript.trim().split(/\s+/).length >= 15) generate();
+        }
+      });
+    } else {
+      el.rec.disabled = true;
+      el.recSub.textContent = "Opnemen werkt in Chrome of Edge op claude.ai. Je kunt het transcript ook typen of plakken.";
+    }
+    if (!sample) { el.maak.disabled = true; el.maak.title = "Alleen beschikbaar binnen Claude"; }
+    if (db && user) {
+      try {
+        const id = await user.id();
+        if (id) {
+          store = db.collection("data/users/" + id + "/notulist/vergaderingen");
+          const timer = setTimeout(() => { el.opslagHint.textContent = "Archief laden duurt lang; opgeslagen vergaderingen verschijnen zodra ze binnen zijn."; }, 10000);
+          store.onSnapshot((snap) => {
+            clearTimeout(timer);
+            el.opslagHint.textContent = "Opgeslagen vergaderingen zijn alleen voor jou zichtbaar.";
+            const remote = snap.docs.map(x => ({ ...x.data(), id: x.id }));
+            // lokale (oude) items die nog niet in de db staan, meenemen
+            const localOnly = local.load().filter(l => !remote.find(r => r.id === l.id));
+            localOnly.forEach(l => { pending.set(l.id, l); });
+            if (localOnly.length) { flush(); local.save([]); }
+            meetings = [...remote, ...localOnly].sort((a, b) => (b.bijgewerkt || 0) - (a.bijgewerkt || 0));
+            if (current && !current.voorbeeld && !meetings.find(m => m.id === current.id)) meetings.unshift(current);
+            if (current && current.voorbeeld && meetings.length && dictState === "idle" && !generating) load(meetings[0]);
+            else renderArchive();
+          }, () => { clearTimeout(timer); store = null; el.opslagHint.textContent = "Archief niet bereikbaar; vergaderingen worden alleen in deze browser bewaard."; });
+        }
+      } catch { store = null; }
+    }
+    if (!store) el.opslagHint.textContent = "Vergaderingen worden in deze browser bewaard.";
+  })();
+})();
+</script>
