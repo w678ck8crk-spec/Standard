@@ -142,6 +142,11 @@ textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; li
 .drop-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 220px; }
 .drop-text strong { font-size: .9rem; }
 .drop-text small { color: var(--muted); font-size: .8rem; }
+.audiohelp { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-size: .9rem; }
+.audiohelp p { margin: 0; max-width: 68ch; }
+.audiohelp .routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.audiohelp ol { margin: 4px 0 0; padding-left: 18px; }
+.audiohelp li { margin: 2px 0; }
 .confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .88rem; }
 </style>
 
@@ -205,6 +210,39 @@ textarea#transcript { min-height: 220px; resize: vertical; font-size: .93rem; li
           </div>
         </div>
         <p class="msg" id="uploadMsg" role="status"></p>
+        <div class="audiohelp" id="audioHelp" hidden>
+          <div class="panel-head">
+            <strong><span id="audioNaam"></span> is een geluidsopname</strong>
+            <button class="btn ghost" id="audioSluit" type="button">Sluiten</button>
+          </div>
+          <p>Deze pagina kan geluid niet zelf naar tekst omzetten. Laat je telefoon of Word de opname uitschrijven en zet die tekst hier neer. Daarna maakt Claude de notulen.</p>
+          <div class="routes">
+            <div>
+              <span class="eyebrow">iPhone</span>
+              <ol>
+                <li>Open <b>Dictafoon</b> (Spraakmemo's) en tik op de opname.</li>
+                <li>Tik op het transcriptie-icoon (de tekstballon).</li>
+                <li>Selecteer en kopieer de tekst, en plak die in het transcript hierboven.</li>
+              </ol>
+            </div>
+            <div>
+              <span class="eyebrow">Word (Microsoft 365)</span>
+              <ol>
+                <li>Open een leeg document in Word voor het web.</li>
+                <li>Kies <b>Start → Dicteren ▾ → Transcriberen</b> en daarna <b>Audio uploaden</b>.</li>
+                <li>Kies <b>Toevoegen aan document</b>, download het als .docx en upload het hier.</li>
+              </ol>
+            </div>
+            <div>
+              <span class="eyebrow">Android</span>
+              <ol>
+                <li>Open de opname in de recorder-app van je telefoon.</li>
+                <li>Kies <b>Transcript</b> en deel of kopieer de tekst.</li>
+                <li>Plak de tekst in het transcript hierboven.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
         <p class="hint" id="dictHint">Tip: noem namen bij het spreken ("Anne pakt dat op voor vrijdag"), dan komen ze in de actiepunten.</p>
       </section>
     </div>
@@ -602,7 +640,8 @@ ${m.transcript.trim()}
         try { pieces.push({ name: images.length === 1 ? images[0].name : images.length + " foto's", text: await fromImages(images) }); }
         catch (err) { fouten.push((err && err.code === "not_granted") ? "Foto's: Claude mag niet gebruikt worden vanaf deze pagina." : "Foto's: " + (err && err.message || "konden niet gelezen worden")); }
       }
-      if (audio.length) fouten.push(`${audio.map(f => f.name).join(", ")}: geluids- en video-opnames kunnen hier nog niet worden omgezet. Exporteer het transcript uit Teams, Zoom of Meet (.vtt of .docx), of gebruik de transcriptiefunctie van je telefoon of dictafoon en upload die tekst.`);
+      const ah = $("audioHelp"); ah.hidden = !audio.length;
+      if (audio.length) $("audioNaam").textContent = audio.map(f => f.name).join(", ");
 
       if (pieces.length) {
         const t = el.transcript; let add = "";
@@ -616,7 +655,7 @@ ${m.transcript.trim()}
         if (new TextEncoder().encode(t.value).length > 230000) say("Dit transcript is erg lang. Claude kan ongeveer 35.000 woorden tegelijk verwerken; splits het anders in delen.", "err");
         else if (el.auto.checked && words >= 15) { uploading = false; generate(); }
       } else {
-        upSay(fouten.join(" "), "err");
+        upSay(fouten.join(" "), fouten.length ? "err" : "");
       }
     } finally {
       uploading = false; up.kies.disabled = false; if (!generating) el.maak.disabled = !sample;
@@ -624,6 +663,7 @@ ${m.transcript.trim()}
     }
   }
   up.kies.addEventListener("click", () => up.input.click());
+  $("audioSluit").addEventListener("click", () => { $("audioHelp").hidden = true; });
   up.input.addEventListener("change", () => handleFiles(up.input.files));
   for (const ev of ["dragenter", "dragover"]) up.drop.addEventListener(ev, (e) => { e.preventDefault(); up.drop.classList.add("over"); });
   for (const ev of ["dragleave", "drop"]) up.drop.addEventListener(ev, (e) => { e.preventDefault(); up.drop.classList.remove("over"); });
